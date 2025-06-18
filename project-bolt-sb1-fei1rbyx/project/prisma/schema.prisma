@@ -1,0 +1,238 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Client {
+  id            String   @id @default(cuid())
+  numeroClient  String   @unique
+  prenom        String
+  nom           String
+  entreprise    String?
+  telephone     String
+  email         String
+  adresse       String
+  ville         String
+  codePostal    String
+  typeClient    TypeClient @default(NORMAL)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Relations
+  vehicules     Vehicule[]
+  devis         Devis[]
+  ordres        OrdreReparation[]
+
+  @@map("clients")
+}
+
+model Vehicule {
+  id              String   @id @default(cuid())
+  immatriculation String   @unique
+  marque          String
+  modele          String
+  annee           Int
+  numeroSerie     String?
+  kilometrage     Int?
+  clientId        String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  client          Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  devis           Devis[]
+  ordres          OrdreReparation[]
+
+  @@map("vehicules")
+}
+
+model Prestation {
+  id           String      @id @default(cuid())
+  nom          String
+  description  String
+  typeService  TypeService
+  prixDeBase   Float
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  
+  // Relations
+  articlesDevis      ArticleDevis[]
+  articlesODR        ArticleODR[]
+
+  @@map("prestations")
+}
+
+model Forfait {
+  id             String   @id @default(cuid())
+  nom            String
+  marqueVehicule String
+  modeleVehicule String
+  prix           Float
+  description    String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("forfaits")
+}
+
+model Devis {
+  id                      String        @id @default(cuid())
+  numeroDevis             String        @unique
+  date                    DateTime      @default(now())
+  dateValidite            DateTime
+  clientId                String
+  vehiculeId              String
+  statut                  StatutDevis   @default(EN_ATTENTE)
+  typeService             TypeService
+  totalHT                 Float
+  montantTVA              Float
+  totalTTC                Float
+  conditionsPaiement      String?
+  pourcentageAcompte      Float?
+  moyensPaiementAcceptes  String[]
+  compteBancaire          String?
+  createdAt               DateTime      @default(now())
+  updatedAt               DateTime      @updatedAt
+  
+  // Relations
+  client                  Client        @relation(fields: [clientId], references: [id])
+  vehicule                Vehicule      @relation(fields: [vehiculeId], references: [id])
+  articles                ArticleDevis[]
+
+  @@map("devis")
+}
+
+model OrdreReparation {
+  id                String        @id @default(cuid())
+  numeroODR         String        @unique
+  date              DateTime      @default(now())
+  dateValidite      DateTime?
+  clientId          String
+  vehiculeId        String
+  statut            StatutODR     @default(EN_COURS)
+  typeService       TypeService
+  montantTotal      Float
+  observations      String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  
+  // Relations
+  client            Client        @relation(fields: [clientId], references: [id])
+  vehicule          Vehicule      @relation(fields: [vehiculeId], references: [id])
+  articles          ArticleODR[]
+
+  @@map("ordres_reparation")
+}
+
+model ArticleDevis {
+  id                String     @id @default(cuid())
+  numeroArticle     String
+  designation       String
+  prixUnitaireTTC   Float
+  quantite          Int
+  totalTTC          Float
+  devisId           String
+  prestationId      String?
+  
+  // Relations
+  devis             Devis      @relation(fields: [devisId], references: [id], onDelete: Cascade)
+  prestation        Prestation? @relation(fields: [prestationId], references: [id])
+
+  @@map("articles_devis")
+}
+
+model ArticleODR {
+  id                String           @id @default(cuid())
+  numeroArticle     String
+  designation       String
+  prixUnitaireTTC   Float
+  quantite          Int
+  totalTTC          Float
+  ordreId           String
+  prestationId      String?
+  
+  // Relations
+  ordre             OrdreReparation  @relation(fields: [ordreId], references: [id], onDelete: Cascade)
+  prestation        Prestation?      @relation(fields: [prestationId], references: [id])
+
+  @@map("articles_odr")
+}
+
+model Facture {
+  id              String        @id @default(cuid())
+  numeroFacture   String        @unique
+  date            DateTime      @default(now())
+  dateEcheance    DateTime
+  clientId        String
+  montantTTC      Float
+  statut          StatutFacture @default(EN_ATTENTE)
+  modePaiement    ModePaiement?
+  dateReglement   DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@map("factures")
+}
+
+model Parametres {
+  id                        String   @id @default(cuid())
+  activationAgentSuivi      Boolean  @default(true)
+  activationAgentODR        Boolean  @default(true)
+  activationAgentEmails     Boolean  @default(true)
+  apiPennylaneKey           String?
+  apiVivawalletKey          String?
+  affichagePrixCarrosserie  Boolean  @default(true)
+  affichagePrixMecanique    Boolean  @default(true)
+  modesPaiementAutorises    ModePaiement[]
+  delaiAlerteEcheance       Int      @default(3)
+  updatedAt                 DateTime @updatedAt
+
+  @@map("parametres")
+}
+
+enum TypeClient {
+  NORMAL
+  GRAND_COMPTE
+}
+
+enum TypeService {
+  CARROSSERIE
+  MECANIQUE
+}
+
+enum StatutDevis {
+  EN_ATTENTE
+  ACCEPTE
+  REFUSE
+  EXPIRE
+}
+
+enum StatutODR {
+  EN_COURS
+  TERMINE
+  ANNULE
+}
+
+enum StatutFacture {
+  EN_ATTENTE
+  PAYEE
+  PARTIELLEMENT_PAYEE
+  IMPAYEE
+  ANNULEE
+}
+
+enum ModePaiement {
+  ESPECES
+  CHEQUE
+  VIREMENT
+  TPE_VIVAWALLET
+  CREDIT_INTERNE
+  MIXTE
+}
