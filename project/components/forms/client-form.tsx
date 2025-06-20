@@ -6,6 +6,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Separator } from '@/components/ui/separator'
+import { Plus, Trash2, Contact, Briefcase } from 'lucide-react'
 import {
   User,
   Building,
@@ -29,6 +31,15 @@ interface ClientFormData {
   ville: string
   codePostal: string
   typeClient: 'NORMAL' | 'GRAND_COMPTE'
+  contactPersonnes?: ContactPerson[]
+}
+
+interface ContactPerson {
+  id: string
+  nom: string
+  telephone: string
+  email: string
+  fonction: string
 }
 
 // Add the Client interface to match what's being passed from the parent
@@ -73,6 +84,8 @@ export function ClientForm({
     typeClient: 'NORMAL'
   })
 
+  const [contactPersonnes, setContactPersonnes] = useState<ContactPerson[]>([])
+
   // Populate form data when in edit mode or when initialData changes
   useEffect(() => {
     if (mode === 'edit' && initialData) {
@@ -87,6 +100,7 @@ export function ClientForm({
         codePostal: initialData.codePostal || '',
         typeClient: initialData.typeClient || 'NORMAL'
       })
+      setContactPersonnes(initialData.contactPersonnes || [])
     } else if (mode === 'create') {
       // Reset form for create mode
       setFormData({
@@ -99,6 +113,7 @@ export function ClientForm({
         codePostal: '',
         typeClient: 'NORMAL'
       })
+      setContactPersonnes([])
     }
   }, [mode, initialData])
 
@@ -112,7 +127,9 @@ export function ClientForm({
     const submitData = {
       ...formData,
       prenom,
-      nom
+      nom,
+      contactPersonnes: formData.typeClient === 'GRAND_COMPTE' ? contactPersonnes : []
+
     }
 
     // Remove nomPrenom since it's not part of the backend structure
@@ -128,6 +145,37 @@ export function ClientForm({
 
   const isEditMode = mode === 'edit'
 
+  // Contact person management functions
+  const addContactPerson = () => {
+    const newContact: ContactPerson = {
+      id: Date.now().toString(),
+      nom: '',
+      telephone: '',
+      email: '',
+      fonction: ''
+    }
+    setContactPersonnes(prev => [...prev, newContact])
+  }
+
+  const removeContactPerson = (contactId: string) => {
+    setContactPersonnes(prev => prev.filter(contact => contact.id !== contactId))
+  }
+
+  const updateContactPerson = (contactId: string, field: keyof ContactPerson, value: string) => {
+    setContactPersonnes(prev =>
+      prev.map(contact =>
+        contact.id === contactId ? { ...contact, [field]: value } : contact
+      )
+    )
+  }
+
+  // Handle type client change with contact cleanup
+  const handleTypeClientChange = (value: 'NORMAL' | 'GRAND_COMPTE') => {
+    handleInputChange('typeClient', value)
+    if (value === 'NORMAL') {
+      setContactPersonnes([])
+    }
+  }
   return (
     <div className="space-y-6">
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -168,7 +216,7 @@ export function ClientForm({
                     id="entreprise"
                     value={formData.entreprise}
                     onChange={(e) => handleInputChange('entreprise', e.target.value)}
-                    placeholder="Mon Entreprise SARL"
+                    placeholder="Mon Entreprise "
                     className="pl-10 border-slate-200 focus:border-blue-300 focus:ring-blue-200 transition-colors"
                   />
                 </div>
@@ -213,7 +261,7 @@ export function ClientForm({
               <Label className="font-medium">Type de Client</Label>
               <RadioGroup
                 value={formData.typeClient}
-                onValueChange={(value: 'NORMAL' | 'GRAND_COMPTE') => handleInputChange('typeClient', value)}
+                onValueChange={handleTypeClientChange}
                 className="flex gap-6"
               >
                 <div className="flex items-center space-x-2">
@@ -232,6 +280,105 @@ export function ClientForm({
                 </div>
               </RadioGroup>
             </div>
+
+            {/* Contact Persons Section - Show only for GRAND_COMPTE */}
+            {formData.typeClient === 'GRAND_COMPTE' && (
+              <div className="space-y-4">
+                <Separator />
+                <div className="flex items-center justify-between">
+                  <h6 className="font-medium text-slate-900 flex items-center gap-2">
+                    <Briefcase className="h-4 w-4" />
+                    Personnes de Contact
+                  </h6>
+                  <Button
+                    type="button"
+                    onClick={addContactPerson}
+                    size="sm"
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Ajouter Contact
+                  </Button>
+                </div>
+
+                {contactPersonnes.map((contact, index) => (
+                  <div key={contact.id} className="p-4 bg-slate-50 border border-slate-200 rounded-lg space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Contact className="h-4 w-4 text-blue-600" />
+                        <h6 className="font-medium text-slate-900">Contact {index + 1}</h6>
+                      </div>
+                      {contactPersonnes.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeContactPerson(contact.id)}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label>Nom</Label>
+                        <Input
+                          value={contact.nom}
+                          onChange={(e) => updateContactPerson(contact.id, 'nom', e.target.value)}
+                          placeholder="Ex: Marie Martin"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Téléphone</Label>
+                        <div className="relative">
+                          <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                          <Input
+                            value={contact.telephone}
+                            onChange={(e) => updateContactPerson(contact.id, 'telephone', e.target.value)}
+                            className="pl-10"
+                            placeholder="Ex: 01 23 45 67 89"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Email</Label>
+                        <div className="relative">
+                          <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                          <Input
+                            type="email"
+                            value={contact.email}
+                            onChange={(e) => updateContactPerson(contact.id, 'email', e.target.value)}
+                            className="pl-10"
+                            placeholder="Ex: marie.martin@entreprise.com"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Fonction</Label>
+                        <Input
+                          value={contact.fonction}
+                          onChange={(e) => updateContactPerson(contact.id, 'fonction', e.target.value)}
+                          placeholder="Ex: Responsable Flotte"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                {contactPersonnes.length === 0 && (
+                  <div className="text-center py-6 text-slate-500 border border-dashed border-slate-300 rounded-lg">
+                    <Contact className="h-8 w-8 mx-auto mb-2 text-slate-400" />
+                    <p className="text-sm">Aucune personne de contact ajoutée</p>
+                    <p className="text-xs text-slate-400">Cliquez sur "Ajouter Contact" pour commencer</p>
+                  </div>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
 
