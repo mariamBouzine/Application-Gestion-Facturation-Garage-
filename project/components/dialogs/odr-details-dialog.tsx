@@ -12,8 +12,8 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Card, CardContent } from '@/components/ui/card'
-import { 
-  FileText, 
+import {
+  FileText,
   User,
   Car,
   Calendar,
@@ -23,21 +23,21 @@ import {
   Clock,
   Hash,
   Wrench,
-  Building,
-  Phone,
-  Mail,
-  MapPin,
-  Edit,
-  X,
-  CheckCircle,
   AlertCircle,
+  CheckCircle,
   Timer,
   Receipt,
-  Download
+  X
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from '@/components/ui/accordion'
 
 interface ODRDetails {
   id: string
@@ -147,7 +147,6 @@ export function ODRDetailsDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[850px] max-h-[90vh] overflow-y-auto p-0 gap-0">
-        {/* Header Section */}
         <div className="relative bg-blue-600 p-8 rounded-t-lg">
           <DialogHeader className="relative z-10">
             <div className="flex items-start justify-between">
@@ -161,23 +160,17 @@ export function ODRDetailsDialog({
                   <DialogTitle className="text-white text-3xl font-bold">
                     ODR {odr.numeroODR}
                   </DialogTitle>
+
                   <DialogDescription className="text-blue-200 flex items-center gap-2">
-                    <Hash className="h-4 w-4" /> {odr.numeroClient} - {odr.clientNom}
+                    <Hash className="h-4 w-4" />
+                    {odr.numeroClient} - {odr.clientNom} - {odr.marqueVehicule} - {odr.immatriculationVehicule}
                   </DialogDescription>
+
                   <div className="mt-2 flex items-center gap-2">
                     {getStatutBadge(odr.statut)}
                     {getServiceBadge(odr.typeService)}
                   </div>
                 </div>
-              </div>
-              <div className="text-right text-white">
-                <div className="text-2xl font-bold">
-                  {new Intl.NumberFormat('fr-FR', {
-                    style: 'currency',
-                    currency: 'EUR'
-                  }).format(odr.montantTTC)}
-                </div>
-                <div className="text-blue-200 text-sm">TTC</div>
               </div>
             </div>
           </DialogHeader>
@@ -187,20 +180,20 @@ export function ODRDetailsDialog({
         <div className="p-6 bg-slate-50">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[{
-              icon: <Calendar className="text-blue-600" />, 
-              label: 'Date création', 
+              icon: <Calendar className="text-blue-600" />,
+              label: 'Date création',
               value: format(new Date(odr.date), 'dd MMM yyyy', { locale: fr })
-            },{
-              icon: <Clock className="text-orange-600" />, 
-              label: 'Ancienneté', 
+            }, {
+              icon: <Clock className="text-orange-600" />,
+              label: 'Ancienneté',
               value: `${getDaysFromCreation()} jours`
-            },{
-              icon: <Euro className="text-green-600" />, 
-              label: 'Montant HT', 
+            }, {
+              icon: <Euro className="text-green-600" />,
+              label: 'Montant HT',
               value: `${odr.montantHT.toFixed(2)}€`
-            },{
-              icon: <Receipt className="text-purple-600" />, 
-              label: 'Prestations', 
+            }, {
+              icon: <Receipt className="text-purple-600" />,
+              label: 'Prestations',
               value: odr.prestations.length
             }].map((item, index) => (
               <Card key={index} className="shadow-sm hover:shadow-md transition duration-300">
@@ -216,85 +209,93 @@ export function ODRDetailsDialog({
           </div>
 
           <div className="mt-6 grid gap-6">
-            {/* Client Information */}
-            <Card className="border-slate-200">
-              <CardContent className="p-5">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center bg-slate-100">
-                    <User className="text-blue-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-slate-900">Informations Client</h3>
-                  </div>
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-2">
-                  {[
-                    { label: 'Nom complet', value: odr.clientNom, type: 'text' },
-                    { label: 'Numéro client', value: odr.numeroClient, type: 'text' },
-                    { label: 'Email', value: odr.clientEmail, type: 'email' },
-                    { label: 'Téléphone', value: odr.clientTelephone, type: 'tel' }
-                  ].map((item, idx) => (
-                    <div key={idx} className="p-3 rounded-lg bg-slate-50 border border-slate-200 flex justify-between items-center">
-                      <div>
-                        <p className="text-sm font-medium text-slate-900">{item.label}</p>
-                        <p className="text-sm text-slate-600 break-words max-w-[250px]">{item.value}</p>
+            <Accordion type="multiple" className="w-full space-y-4">
+              {/* Informations Client */}
+              <AccordionItem value="client">
+                <Card className="border-slate-200">
+                  <AccordionTrigger className="p-5 hover:no-underline">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full flex items-center justify-center bg-slate-100">
+                        <User className="text-blue-600" />
                       </div>
-                      <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => handleCopy(item.value, item.label)}>
-                          <Copy className="h-3 w-3" />
-                        </Button>
-                        {item.type === 'email' && (
-                          <Button variant="ghost" size="icon" onClick={() => window.open(`mailto:${item.value}`)}>
-                            <ExternalLink className="h-3 w-3" />
-                          </Button>
-                        )}
-                        {item.type === 'tel' && (
-                          <Button variant="ghost" size="icon" onClick={() => window.open(`tel:${item.value}`)}>
-                            <ExternalLink className="h-3 w-3" />
-                          </Button>
-                        )}
-                      </div>
+                      <h3 className="text-lg font-semibold text-slate-900">Informations Client</h3>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Vehicle Information */}
-            <Card className="border-slate-200">
-              <CardContent className="p-5">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center bg-slate-100">
-                    <Car className="text-orange-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-slate-900">Véhicule</h3>
-                  </div>
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-2">
-                  {[
-                    { label: 'Immatriculation', value: odr.immatriculationVehicule, type: 'text' },
-                    { label: 'Marque', value: odr.marqueVehicule, type: 'text' },
-                    { label: 'Modèle', value: odr.modeleVehicule, type: 'text' },
-                    { label: 'Type de service', value: odr.typeService === 'CARROSSERIE' ? 'Carrosserie' : 'Mécanique', type: 'text' }
-                  ].map((item, idx) => (
-                    <div key={idx} className="p-3 rounded-lg bg-slate-50 border border-slate-200 flex justify-between items-center">
-                      <div>
-                        <p className="text-sm font-medium text-slate-900">{item.label}</p>
-                        <p className="text-sm text-slate-600 break-words max-w-[250px]">{item.value}</p>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <CardContent className="p-5 pt-0">
+                      <div className="grid gap-4 md:grid-cols-2">
+                        {[
+                          { label: 'Nom complet', value: odr.clientNom, type: 'text' },
+                          { label: 'Numéro client', value: odr.numeroClient, type: 'text' },
+                          { label: 'Email', value: odr.clientEmail, type: 'email' },
+                          { label: 'Téléphone', value: odr.clientTelephone, type: 'tel' }
+                        ].map((item, idx) => (
+                          <div key={idx} className="p-3 rounded-lg bg-slate-50 border border-slate-200 flex justify-between items-center">
+                            <div>
+                              <p className="text-sm font-medium text-slate-900">{item.label}</p>
+                              <p className="text-sm text-slate-600 break-words max-w-[250px]">{item.value}</p>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Button variant="ghost" size="icon" onClick={() => handleCopy(item.value, item.label)}>
+                                <Copy className="h-3 w-3" />
+                              </Button>
+                              {item.type === 'email' && (
+                                <Button variant="ghost" size="icon" onClick={() => window.open(`mailto:${item.value}`)}>
+                                  <ExternalLink className="h-3 w-3" />
+                                </Button>
+                              )}
+                              {item.type === 'tel' && (
+                                <Button variant="ghost" size="icon" onClick={() => window.open(`tel:${item.value}`)}>
+                                  <ExternalLink className="h-3 w-3" />
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                      <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => handleCopy(item.value, item.label)}>
-                          <Copy className="h-3 w-3" />
-                        </Button>
+                    </CardContent>
+                  </AccordionContent>
+                </Card>
+              </AccordionItem>
+
+              {/* Informations Véhicule */}
+              <AccordionItem value="vehicule">
+                <Card className="border-slate-200">
+                  <AccordionTrigger className="p-5 hover:no-underline">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full flex items-center justify-center bg-slate-100">
+                        <Car className="text-orange-600" />
                       </div>
+                      <h3 className="text-lg font-semibold text-slate-900">Véhicule</h3>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <CardContent className="p-5 pt-0">
+                      <div className="grid gap-4 md:grid-cols-2">
+                        {[
+                          { label: 'Immatriculation', value: odr.immatriculationVehicule, type: 'text' },
+                          { label: 'Marque', value: odr.marqueVehicule, type: 'text' },
+                          { label: 'Modèle', value: odr.modeleVehicule, type: 'text' },
+                          { label: 'Type de service', value: odr.typeService === 'CARROSSERIE' ? 'Carrosserie' : 'Mécanique', type: 'text' }
+                        ].map((item, idx) => (
+                          <div key={idx} className="p-3 rounded-lg bg-slate-50 border border-slate-200 flex justify-between items-center">
+                            <div>
+                              <p className="text-sm font-medium text-slate-900">{item.label}</p>
+                              <p className="text-sm text-slate-600 break-words max-w-[250px]">{item.value}</p>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Button variant="ghost" size="icon" onClick={() => handleCopy(item.value, item.label)}>
+                                <Copy className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </AccordionContent>
+                </Card>
+              </AccordionItem>
+            </Accordion>
 
             {/* Prestations */}
             <Card className="border-slate-200">
@@ -392,7 +393,7 @@ export function ODRDetailsDialog({
                       </Button>
                     </div>
                   ))}
-                  
+
                   {odr.observations && (
                     <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
                       <p className="text-sm font-medium text-slate-900 mb-2">Observations</p>
