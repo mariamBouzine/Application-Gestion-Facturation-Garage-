@@ -72,6 +72,9 @@ import {
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { FactureForm } from '@/components/forms/facture-form'
+import { FactureDetailsDialog } from '@/components/dialogs/facture-details-dialog'
+import { FactureDeleteConfirmationDialog } from '@/components/dialogs/facture-confirmation-dialog'
+import { FactureStatusUpdateDialog } from '@/components/dialogs/facture-status-update-dialog'
 import { toast } from 'sonner'
 
 // Mock data with more entries
@@ -192,6 +195,16 @@ export default function FacturesPage() {
   const [filterStatut, setFilterStatut] = useState<'ALL' | 'PAYEE' | 'EN_ATTENTE' | 'IMPAYEE' | 'PARTIELLEMENT_PAYEE' | 'ANNULEE'>('ALL')
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage] = useState(10)
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [statusUpdateDialogOpen, setStatusUpdateDialogOpen] = useState(false)
+  const [selectedFactureForDetails, setSelectedFactureForDetails] = useState<any>(null)
+  const [selectedFactureForDelete, setSelectedFactureForDelete] = useState<any>(null)
+  const [selectedFactureForStatusUpdate, setSelectedFactureForStatusUpdate] = useState<any>(null)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [selectedFactureForEdit, setSelectedFactureForEdit] = useState<any>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false)
 
   // Load initial data
   useEffect(() => {
@@ -258,6 +271,92 @@ export default function FacturesPage() {
     } catch (error) {
       toast.error('Erreur lors de la création de la facture')
       console.error('Error creating facture:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Handler functions
+  const handleViewDetails = (facture: any) => {
+    // Enhance facture data with additional details for the dialog
+    const enhancedFacture = {
+      ...facture,
+      clientEmail: `${facture.clientNom.toLowerCase().replace(' ', '.')}@email.com`, // Mock email
+      clientTelephone: '+33 1 23 45 67 89', // Mock phone
+      numeroClient: mockClients.find(c => `${c.prenom} ${c.nom}` === facture.clientNom)?.numeroClient || 'CLI-XXX',
+      montantHT: facture.montantTTC / 1.2,
+      tva: 20,
+      observations: 'Aucune observation particulière pour cette facture.',
+      updatedAt: new Date().toISOString()
+    }
+    setSelectedFactureForDetails(enhancedFacture)
+    setDetailsDialogOpen(true)
+  }
+
+  const handleEditFacture = (facture: any) => {
+    setSelectedFactureForEdit(facture)
+    setEditDialogOpen(true)
+  }
+
+  const handleDeleteFacture = (facture: any) => {
+    setSelectedFactureForDelete(facture)
+    setDeleteDialogOpen(true)
+  }
+
+  const handleUpdateStatus = (facture: any) => {
+    setSelectedFactureForStatusUpdate(facture)
+    setStatusUpdateDialogOpen(true)
+  }
+
+  const handleConfirmDelete = async (factureId: string) => {
+    setIsDeleting(true)
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1500))
+      console.log('Deleting facture:', factureId)
+      toast.success('Facture supprimée avec succès', {
+        description: 'La facture a été supprimée définitivement.'
+      })
+      setDeleteDialogOpen(false)
+      setSelectedFactureForDelete(null)
+    } catch (error) {
+      toast.error('Erreur lors de la suppression')
+      console.error('Error deleting facture:', error)
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  const handleConfirmStatusUpdate = async (factureId: string, newStatut: string, modePaiement?: string, dateReglement?: Date) => {
+    setIsUpdatingStatus(true)
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1500))
+      console.log('Updating facture status:', { factureId, newStatut, modePaiement, dateReglement })
+      toast.success('Statut mis à jour avec succès', {
+        description: `La facture ${selectedFactureForStatusUpdate?.numeroFacture} a été mise à jour.`
+      })
+      setStatusUpdateDialogOpen(false)
+      setSelectedFactureForStatusUpdate(null)
+    } catch (error) {
+      toast.error('Erreur lors de la mise à jour')
+      console.error('Error updating facture status:', error)
+    } finally {
+      setIsUpdatingStatus(false)
+    }
+  }
+
+  const handleEditFormSubmit = async (data: any) => {
+    setIsLoading(true)
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      console.log('Updating facture:', { ...selectedFactureForEdit, ...data })
+      setEditDialogOpen(false)
+      setSelectedFactureForEdit(null)
+      toast.success('Facture modifiée avec succès', {
+        description: `La facture ${selectedFactureForEdit?.numeroFacture} a été mise à jour.`
+      })
+    } catch (error) {
+      toast.error('Erreur lors de la modification de la facture')
+      console.error('Error updating facture:', error)
     } finally {
       setIsLoading(false)
     }
@@ -837,13 +936,26 @@ export default function FacturesPage() {
                               <DropdownMenuContent align="end" className="w-48">
                                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem className="hover:bg-blue-50 hover:text-blue-600">
+                                <DropdownMenuItem
+                                  className="hover:bg-blue-50 hover:text-blue-600"
+                                  onClick={() => handleViewDetails(facture)}
+                                >
                                   <Eye className="mr-2 h-4 w-4" />
                                   Voir la facture
                                 </DropdownMenuItem>
-                                <DropdownMenuItem className="hover:bg-blue-50 hover:text-blue-600">
+                                <DropdownMenuItem
+                                  className="hover:bg-blue-50 hover:text-blue-600"
+                                  onClick={() => handleEditFacture(facture)}
+                                >
                                   <Edit className="mr-2 h-4 w-4" />
                                   Modifier
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  className="hover:bg-purple-50 hover:text-purple-600"
+                                  onClick={() => handleUpdateStatus(facture)}
+                                >
+                                  <CheckCircle className="mr-2 h-4 w-4" />
+                                  Changer statut
                                 </DropdownMenuItem>
                                 <DropdownMenuItem className="hover:bg-blue-50 hover:text-blue-600">
                                   <Copy className="mr-2 h-4 w-4" />
@@ -858,7 +970,10 @@ export default function FacturesPage() {
                                   Relancer client
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem className="text-red-600 hover:bg-red-50 hover:text-red-700">
+                                <DropdownMenuItem
+                                  className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                                  onClick={() => handleDeleteFacture(facture)}
+                                >
                                   <Trash2 className="mr-2 h-4 w-4" />
                                   Supprimer
                                 </DropdownMenuItem>
@@ -924,8 +1039,8 @@ export default function FacturesPage() {
                               size="sm"
                               onClick={() => setCurrentPage(pageNum)}
                               className={`w-8 h-8 p-0 ${currentPage === pageNum
-                                  ? 'bg-blue-600 text-white hover:bg-blue-700'
-                                  : 'hover:bg-slate-100'
+                                ? 'bg-blue-600 text-white hover:bg-blue-700'
+                                : 'hover:bg-slate-100'
                                 } transition-colors`}
                             >
                               {pageNum}
@@ -1032,7 +1147,12 @@ export default function FacturesPage() {
                     </div>
 
                     <div className="flex items-center justify-between">
-                      <Button variant="outline" size="sm" className="hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-colors">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-colors"
+                        onClick={() => handleViewDetails(facture)}
+                      >
                         <Eye className="h-3 w-3 mr-1" />
                         Voir
                       </Button>
@@ -1132,6 +1252,55 @@ export default function FacturesPage() {
               </CardContent>
             </Card>
           )}
+
+          <FactureDetailsDialog
+            open={detailsDialogOpen}
+            onOpenChange={setDetailsDialogOpen}
+            facture={selectedFactureForDetails}
+            onEdit={handleEditFacture}
+          />
+
+          <FactureDeleteConfirmationDialog
+            open={deleteDialogOpen}
+            onOpenChange={setDeleteDialogOpen}
+            facture={selectedFactureForDelete}
+            onConfirm={handleConfirmDelete}
+            isLoading={isDeleting}
+          />
+
+          <FactureStatusUpdateDialog
+            open={statusUpdateDialogOpen}
+            onOpenChange={setStatusUpdateDialogOpen}
+            facture={selectedFactureForStatusUpdate}
+            onConfirm={handleConfirmStatusUpdate}
+            isLoading={isUpdatingStatus}
+          />
+
+          <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+            <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Modifier la facture</DialogTitle>
+                <DialogDescription>
+                  Modification de la facture {selectedFactureForEdit?.numeroFacture}
+                </DialogDescription>
+              </DialogHeader>
+              {selectedFactureForEdit && (
+                <FactureForm
+                  onSubmit={handleEditFormSubmit}
+                  onCancel={() => setEditDialogOpen(false)}
+                  clients={mockClients}
+                  odrs={mockODRs}
+                  isLoading={isLoading}
+                  initialData={{
+                    clientId: mockClients.find(c => `${c.prenom} ${c.nom}` === selectedFactureForEdit.clientNom)?.id || '',
+                    montantTTC: selectedFactureForEdit.montantTTC,
+                    dateEcheance: selectedFactureForEdit.dateEcheance,
+                    numeroODR: selectedFactureForEdit.numeroODR
+                  }}
+                />
+              )}
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
     </div>

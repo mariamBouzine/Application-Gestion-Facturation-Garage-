@@ -69,6 +69,9 @@ import {
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { DevisForm } from '@/components/forms/devis-form'
+import { DevisDetailsDialog } from '@/components/dialogs/devis-details-dialog'
+// import { DevisEditDialog } from '@/components/dialogs/'
+import { DevisDeleteConfirmationDialog } from '@/components/dialogs/devis-confirmation-dialog'
 import { toast } from 'sonner'
 
 // Mock data
@@ -78,13 +81,22 @@ const mockDevis = [
     numeroDevis: 'DEV-2024-001',
     date: new Date('2024-01-20T09:00:00Z'),
     dateValidite: new Date('2024-02-19T09:00:00Z'),
+    clientId: '1',
     clientNom: 'Martin Dubois',
+    vehiculeId: '1',
     vehicule: 'Peugeot 308 - AB-123-CD',
     statut: 'EN_ATTENTE',
     typeService: 'CARROSSERIE',
     totalHT: 850.00,
     montantTVA: 170.00,
     totalTTC: 1020.00,
+    conditionsPaiement: 'Paiement à 30 jours',
+    pourcentageAcompte: 30,
+    compteBancaire: 'FR76 1234 5678 9012 3456 7890 123',
+    articles: [
+      { designation: 'Réparation pare-chocs avant', prixUnitaireTTC: 450, quantite: 1 },
+      { designation: 'Peinture complète', prixUnitaireTTC: 570, quantite: 1 }
+    ],
     createdAt: new Date('2024-01-20T09:00:00Z')
   },
   {
@@ -92,13 +104,22 @@ const mockDevis = [
     numeroDevis: 'DEV-2024-002',
     date: new Date('2024-01-15T14:30:00Z'),
     dateValidite: new Date('2024-02-14T14:30:00Z'),
+    clientId: '2',
     clientNom: 'Sophie Lambert',
+    vehiculeId: '2',
     vehicule: 'Renault Clio - EF-456-GH',
     statut: 'ACCEPTE',
     typeService: 'MECANIQUE',
     totalHT: 450.00,
     montantTVA: 90.00,
     totalTTC: 540.00,
+    conditionsPaiement: 'Paiement comptant',
+    pourcentageAcompte: 0,
+    compteBancaire: '',
+    articles: [
+      { designation: 'Vidange moteur', prixUnitaireTTC: 85, quantite: 1 },
+      { designation: 'Changement freins avant', prixUnitaireTTC: 455, quantite: 1 }
+    ],
     createdAt: new Date('2024-01-15T14:30:00Z')
   },
   {
@@ -106,13 +127,22 @@ const mockDevis = [
     numeroDevis: 'DEV-2024-003',
     date: new Date('2024-01-22T10:15:00Z'),
     dateValidite: new Date('2024-02-21T10:15:00Z'),
+    clientId: '3',
     clientNom: 'Pierre Moreau',
+    vehiculeId: '3',
     vehicule: 'BMW X3 - IJ-789-KL',
     statut: 'REFUSE',
     typeService: 'CARROSSERIE',
     totalHT: 1250.00,
     montantTVA: 250.00,
     totalTTC: 1500.00,
+    conditionsPaiement: 'Paiement à 60 jours',
+    pourcentageAcompte: 50,
+    compteBancaire: 'FR76 1234 5678 9012 3456 7890 123',
+    articles: [
+      { designation: 'Réparation carrosserie côté droit', prixUnitaireTTC: 800, quantite: 1 },
+      { designation: 'Peinture partielle', prixUnitaireTTC: 700, quantite: 1 }
+    ],
     createdAt: new Date('2024-01-22T10:15:00Z')
   },
   {
@@ -120,13 +150,21 @@ const mockDevis = [
     numeroDevis: 'DEV-2024-004',
     date: new Date('2024-01-10T16:45:00Z'),
     dateValidite: new Date('2024-02-09T16:45:00Z'),
+    clientId: '4',
     clientNom: 'Marie Petit',
+    vehiculeId: '4',
     vehicule: 'Volkswagen Golf - MN-012-OP',
     statut: 'EXPIRE',
     typeService: 'MECANIQUE',
     totalHT: 320.00,
     montantTVA: 64.00,
     totalTTC: 384.00,
+    conditionsPaiement: 'Paiement à 30 jours',
+    pourcentageAcompte: 20,
+    compteBancaire: '',
+    articles: [
+      { designation: 'Révision complète', prixUnitaireTTC: 384, quantite: 1 }
+    ],
     createdAt: new Date('2024-01-10T16:45:00Z')
   },
   {
@@ -134,13 +172,22 @@ const mockDevis = [
     numeroDevis: 'DEV-2024-005',
     date: new Date('2024-01-25T11:30:00Z'),
     dateValidite: new Date('2024-02-24T11:30:00Z'),
+    clientId: '5',
     clientNom: 'Jean Durand',
+    vehiculeId: '5',
     vehicule: 'Audi A4 - QR-345-ST',
     statut: 'EN_ATTENTE',
     typeService: 'CARROSSERIE',
     totalHT: 675.00,
     montantTVA: 135.00,
     totalTTC: 810.00,
+    conditionsPaiement: 'Paiement à 45 jours',
+    pourcentageAcompte: 40,
+    compteBancaire: 'FR76 1234 5678 9012 3456 7890 123',
+    articles: [
+      { designation: 'Réparation rayures profondes', prixUnitaireTTC: 350, quantite: 1 },
+      { designation: 'Polissage carrosserie', prixUnitaireTTC: 460, quantite: 1 }
+    ],
     createdAt: new Date('2024-01-25T11:30:00Z')
   }
 ]
@@ -171,15 +218,22 @@ const mockPrestations = [
 export default function DevisPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [isInitialLoading, setIsInitialLoading] = useState(true)
   const [selectedDevis, setSelectedDevis] = useState<string[]>([])
+  const [selectedDevisForView, setSelectedDevisForView] = useState<any>(null)
+  const [selectedDevisForEdit, setSelectedDevisForEdit] = useState<any>(null)
+  const [selectedDevisForDelete, setSelectedDevisForDelete] = useState<any>(null)
   const [sortBy, setSortBy] = useState<'date' | 'client' | 'montant' | 'statut'>('date')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [filterStatut, setFilterStatut] = useState<'ALL' | 'EN_ATTENTE' | 'ACCEPTE' | 'REFUSE' | 'EXPIRE'>('ALL')
   const [filterService, setFilterService] = useState<'ALL' | 'CARROSSERIE' | 'MECANIQUE'>('ALL')
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage] = useState(10)
+  const [devisList, setDevisList] = useState(mockDevis)
 
   // Load initial data
   useEffect(() => {
@@ -191,7 +245,7 @@ export default function DevisPage() {
     loadData()
   }, [])
 
-  const filteredDevis = mockDevis.filter(devis => {
+  const filteredDevis = devisList.filter(devis => {
     const matchesSearch =
       devis.numeroDevis.toLowerCase().includes(searchTerm.toLowerCase()) ||
       devis.clientNom.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -232,14 +286,36 @@ export default function DevisPage() {
     currentPage * itemsPerPage
   )
 
+  // Handlers
   const handleCreateDevis = async (data: any) => {
     setIsLoading(true)
     try {
       await new Promise(resolve => setTimeout(resolve, 1000))
-      console.log('Creating devis:', data)
+
+      // Generate new devis number
+      const newNumber = `DEV-2024-${String(devisList.length + 1).padStart(3, '0')}`
+
+      const newDevis = {
+        ...data,
+        id: String(Date.now()),
+        numeroDevis: newNumber,
+        date: new Date(),
+        createdAt: new Date(),
+        totalHT: data.articles.reduce((sum: number, article: any) => sum + (article.prixUnitaireTTC * article.quantite * 0.8333), 0),
+        montantTVA: data.articles.reduce((sum: number, article: any) => sum + (article.prixUnitaireTTC * article.quantite * 0.1667), 0),
+        totalTTC: data.articles.reduce((sum: number, article: any) => sum + (article.prixUnitaireTTC * article.quantite), 0),
+        clientNom: mockClients.find(c => c.id === data.clientId)?.prenom + ' ' + mockClients.find(c => c.id === data.clientId)?.nom || '',
+        vehicule: (() => {
+          const vehicule = mockVehicules.find(v => v.id === data.vehiculeId)
+          return vehicule ? `${vehicule.marque} ${vehicule.modele} - ${vehicule.immatriculation}` : ''
+        })(),
+        statut: 'EN_ATTENTE'
+      }
+
+      setDevisList(prev => [newDevis, ...prev])
       setIsAddDialogOpen(false)
       toast.success('Devis créé avec succès', {
-        description: `Le devis ${data.numeroDevis || 'DEV-2024-XXX'} a été créé.`
+        description: `Le devis ${newNumber} a été créé.`
       })
     } catch (error) {
       toast.error('Erreur lors de la création du devis')
@@ -247,6 +323,93 @@ export default function DevisPage() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleUpdateDevis = async (data: any) => {
+    setIsLoading(true)
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
+      const updatedDevis = {
+        ...data,
+        totalHT: data.articles.reduce((sum: number, article: any) => sum + (article.prixUnitaireTTC * article.quantite * 0.8333), 0),
+        montantTVA: data.articles.reduce((sum: number, article: any) => sum + (article.prixUnitaireTTC * article.quantite * 0.1667), 0),
+        totalTTC: data.articles.reduce((sum: number, article: any) => sum + (article.prixUnitaireTTC * article.quantite), 0),
+        clientNom: mockClients.find(c => c.id === data.clientId)?.prenom + ' ' + mockClients.find(c => c.id === data.clientId)?.nom || '',
+        vehicule: (() => {
+          const vehicule = mockVehicules.find(v => v.id === data.vehiculeId)
+          return vehicule ? `${vehicule.marque} ${vehicule.modele} - ${vehicule.immatriculation}` : ''
+        })()
+      }
+
+      setDevisList(prev => prev.map(devis =>
+        devis.id === data.id ? { ...devis, ...updatedDevis } : devis
+      ))
+      setIsEditDialogOpen(false)
+      toast.success('Devis modifié avec succès', {
+        description: `Le devis ${data.numeroDevis} a été mis à jour.`
+      })
+    } catch (error) {
+      toast.error('Erreur lors de la modification du devis')
+      console.error('Error updating devis:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleDeleteDevis = async (devisId: string) => {
+    setIsLoading(true)
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
+      const devis = devisList.find(d => d.id === devisId)
+      setDevisList(prev => prev.filter(d => d.id !== devisId))
+      setIsDeleteDialogOpen(false)
+      toast.success('Devis supprimé avec succès', {
+        description: `Le devis ${devis?.numeroDevis} a été supprimé.`
+      })
+    } catch (error) {
+      toast.error('Erreur lors de la suppression du devis')
+      console.error('Error deleting devis:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleStatusChange = async (devisId: string, newStatus: string) => {
+    try {
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      setDevisList(prev => prev.map(devis =>
+        devis.id === devisId ? { ...devis, statut: newStatus } : devis
+      ))
+
+      // Update the selected devis for view if it's the same one
+      if (selectedDevisForView?.id === devisId) {
+        setSelectedDevisForView(prev => ({ ...prev, statut: newStatus }))
+      }
+
+      toast.success('Statut mis à jour avec succès')
+    } catch (error) {
+      toast.error('Erreur lors de la mise à jour du statut')
+      console.error('Error updating status:', error)
+    }
+  }
+
+  const handleViewDevis = (devis: any) => {
+    setSelectedDevisForView(devis)
+    setIsViewDialogOpen(true)
+  }
+
+  const handleEditDevis = (devis: any) => {
+    setSelectedDevisForEdit(devis)
+    setIsEditDialogOpen(true)
+    setIsViewDialogOpen(false) // Close view dialog if open
+  }
+
+  const handleDeleteDevisClick = (devis: any) => {
+    setSelectedDevisForDelete(devis)
+    setIsDeleteDialogOpen(true)
   }
 
   const handleSelectAll = (checked: boolean) => {
@@ -323,10 +486,10 @@ export default function DevisPage() {
 
   // Calculate stats
   const stats = {
-    total: mockDevis.length,
-    enAttente: mockDevis.filter(d => d.statut === 'EN_ATTENTE').length,
-    acceptes: mockDevis.filter(d => d.statut === 'ACCEPTE').length,
-    montantTotal: mockDevis.reduce((sum, devis) => sum + devis.totalTTC, 0)
+    total: devisList.length,
+    enAttente: devisList.filter(d => d.statut === 'EN_ATTENTE').length,
+    acceptes: devisList.filter(d => d.statut === 'ACCEPTE').length,
+    montantTotal: devisList.reduce((sum, devis) => sum + devis.totalTTC, 0)
   }
 
   // Pagination navigation
@@ -359,7 +522,7 @@ export default function DevisPage() {
                 </h1>
                 <div className="flex items-center gap-2 px-3 py-1 bg-blue-50 border border-blue-200 rounded-full w-fit">
                   <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-                  <span className="text-xs font-medium text-blue-700">{mockDevis.length} devis</span>
+                  <span className="text-xs font-medium text-blue-700">{devisList.length} devis</span>
                 </div>
               </div>
               <p className="text-slate-600 text-base sm:text-lg max-w-2xl">
@@ -596,8 +759,8 @@ export default function DevisPage() {
                   {hasActiveFilters && (
                     <span className="text-blue-600 ml-1">(filtré{filteredDevis.length > 1 ? 's' : ''})</span>
                   )}
-                  {filteredDevis.length !== mockDevis.length && (
-                    <span className="text-slate-400 ml-1">sur {mockDevis.length}</span>
+                  {filteredDevis.length !== devisList.length && (
+                    <span className="text-slate-400 ml-1">sur {devisList.length}</span>
                   )}
                 </p>
 
@@ -707,15 +870,11 @@ export default function DevisPage() {
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              <div className="p-1.5 bg-blue-100 rounded-full">
-                                <User className="h-3 w-3 text-blue-600" />
-                              </div>
                               <div className="font-medium text-slate-900">{devis.clientNom}</div>
                             </div>
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              <Car className="h-3 w-3 text-slate-400" />
                               <div className="text-sm text-slate-700">{devis.vehicule}</div>
                             </div>
                           </TableCell>
@@ -742,7 +901,6 @@ export default function DevisPage() {
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1 text-sm text-slate-600">
-                              <Calendar className="h-3 w-3" />
                               {format(devis.date, 'dd/MM/yyyy', { locale: fr })}
                             </div>
                           </TableCell>
@@ -786,14 +944,54 @@ export default function DevisPage() {
                               <DropdownMenuContent align="end" className="w-48">
                                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem className="hover:bg-blue-50 hover:text-blue-600">
+                                <DropdownMenuItem
+                                  className="hover:bg-blue-50 hover:text-blue-600"
+                                  onClick={() => handleViewDevis(devis)}
+                                >
                                   <Eye className="mr-2 h-4 w-4" />
                                   Voir le devis
                                 </DropdownMenuItem>
-                                <DropdownMenuItem className="hover:bg-blue-50 hover:text-blue-600">
+                                <DropdownMenuItem
+                                  className="hover:bg-blue-50 hover:text-blue-600"
+                                  onClick={() => handleEditDevis(devis)}
+                                >
                                   <Edit className="mr-2 h-4 w-4" />
                                   Modifier
                                 </DropdownMenuItem>
+
+                                {/* Status Update Submenu */}
+                                {devis.statut !== 'ACCEPTE' && (
+                                  <DropdownMenuItem
+                                    className="hover:bg-green-50 hover:text-green-600"
+                                    onClick={() => handleStatusChange(devis.id, 'ACCEPTE')}
+                                  >
+                                    <CheckCircle className="mr-2 h-4 w-4" />
+                                    Marquer accepté
+                                  </DropdownMenuItem>
+                                )}
+
+                                {devis.statut !== 'REFUSE' && (
+                                  <DropdownMenuItem
+                                    className="hover:bg-red-50 hover:text-red-600"
+                                    onClick={() => handleStatusChange(devis.id, 'REFUSE')}
+                                  >
+                                    <X className="mr-2 h-4 w-4" />
+                                    Marquer refusé
+                                  </DropdownMenuItem>
+                                )}
+
+                                {devis.statut !== 'EN_ATTENTE' && (
+                                  <DropdownMenuItem
+                                    className="hover:bg-yellow-50 hover:text-yellow-600"
+                                    onClick={() => handleStatusChange(devis.id, 'EN_ATTENTE')}
+                                  >
+                                    <Clock className="mr-2 h-4 w-4" />
+                                    Remettre en attente
+                                  </DropdownMenuItem>
+                                )}
+
+                                <DropdownMenuSeparator />
+
                                 <DropdownMenuItem className="hover:bg-blue-50 hover:text-blue-600">
                                   <Copy className="mr-2 h-4 w-4" />
                                   Dupliquer
@@ -807,7 +1005,10 @@ export default function DevisPage() {
                                   Télécharger PDF
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem className="text-red-600 hover:bg-red-50 hover:text-red-700">
+                                <DropdownMenuItem
+                                  className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                                  onClick={() => handleDeleteDevisClick(devis)}
+                                >
                                   <Trash2 className="mr-2 h-4 w-4" />
                                   Supprimer
                                 </DropdownMenuItem>
@@ -873,8 +1074,8 @@ export default function DevisPage() {
                               size="sm"
                               onClick={() => setCurrentPage(pageNum)}
                               className={`w-8 h-8 p-0 ${currentPage === pageNum
-                                  ? 'bg-blue-600 text-white hover:bg-blue-700'
-                                  : 'hover:bg-slate-100'
+                                ? 'bg-blue-600 text-white hover:bg-blue-700'
+                                : 'hover:bg-slate-100'
                                 } transition-colors`}
                             >
                               {pageNum}
@@ -997,7 +1198,12 @@ export default function DevisPage() {
                     </div>
 
                     <div className="flex items-center justify-between">
-                      <Button variant="outline" size="sm" className="hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-colors">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-colors"
+                        onClick={() => handleViewDevis(devis)}
+                      >
                         <Eye className="h-3 w-3 mr-1" />
                         Voir
                       </Button>
@@ -1013,7 +1219,10 @@ export default function DevisPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-48">
-                            <DropdownMenuItem className="hover:bg-blue-50 hover:text-blue-600">
+                            <DropdownMenuItem
+                              className="hover:bg-blue-50 hover:text-blue-600"
+                              onClick={() => handleEditDevis(devis)}
+                            >
                               <Edit className="mr-2 h-4 w-4" />
                               Modifier
                             </DropdownMenuItem>
@@ -1026,7 +1235,10 @@ export default function DevisPage() {
                               Télécharger PDF
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem className="text-red-600 hover:bg-red-50 hover:text-red-700">
+                            <DropdownMenuItem
+                              className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                              onClick={() => handleDeleteDevisClick(devis)}
+                            >
                               <Trash2 className="mr-2 h-4 w-4" />
                               Supprimer
                             </DropdownMenuItem>
@@ -1097,6 +1309,49 @@ export default function DevisPage() {
           )}
         </div>
       </div>
+
+      {/* Dialogs */}
+      {/* View Dialog */}
+      <DevisDetailsDialog
+        open={isViewDialogOpen}
+        onOpenChange={setIsViewDialogOpen}
+        devis={selectedDevisForView}
+        onEdit={handleEditDevis}
+        onStatusChange={handleStatusChange}
+        clients={mockClients}
+        vehicules={mockVehicules}
+      />
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Modifier le devis</DialogTitle>
+            <DialogDescription>
+              Modifiez les informations du devis {selectedDevisForEdit?.numeroDevis}
+            </DialogDescription>
+          </DialogHeader>
+          <DevisForm
+            onSubmit={handleUpdateDevis}
+            onCancel={() => setIsEditDialogOpen(false)}
+            clients={mockClients}
+            vehicules={mockVehicules}
+            prestations={mockPrestations}
+            isLoading={isLoading}
+            initialData={selectedDevisForEdit}
+            isEdit={true}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Dialog */}
+      <DevisDeleteConfirmationDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        devis={selectedDevisForDelete}
+        onConfirm={handleDeleteDevis}
+        isLoading={isLoading}
+      />
     </div>
   )
 }

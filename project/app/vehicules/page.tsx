@@ -61,11 +61,17 @@ import {
   FileText
 } from 'lucide-react'
 import { VehiculeForm } from '@/components/forms/vehicule-form'
-import { getVehicules, getClients, addVehicule, getVehiculeStats, type Vehicule, type Client } from '@/lib/mock-data'
+import { VehiculeDetailsDialog } from '@/components/dialogs/vehicule-details-dialog'
+import { VehiculeConfirmationDialog } from '@/components/dialogs/vehicule-confirmation-dialog'
+import { getVehicules, getClients, addVehicule, updateVehicule, deleteVehicule, getVehiculeStats, type Vehicule, type Client } from '@/lib/mock-data'
+import { toast } from 'sonner'
 
 export default function VehiculesPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [isInitialLoading, setIsInitialLoading] = useState(true)
   const [vehicules, setVehicules] = useState<Vehicule[]>([])
@@ -78,6 +84,7 @@ export default function VehiculesPage() {
   const [filterAnnee, setFilterAnnee] = useState<string>('ALL')
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage] = useState(10)
+  const [selectedVehicule, setSelectedVehicule] = useState<Vehicule | null>(null)
 
   // Load initial data
   useEffect(() => {
@@ -192,12 +199,79 @@ export default function VehiculesPage() {
       setStats(getVehiculeStats())
       setIsAddDialogOpen(false)
 
-      console.log('Vehicule created:', newVehicule)
+      toast.success('Véhicule créé avec succès', {
+        description: `${newVehicule.marque} ${newVehicule.modele} (${newVehicule.immatriculation}) a été ajouté.`
+      })
     } catch (error) {
+      toast.error('Erreur lors de la création du véhicule')
       console.error('Error creating vehicule:', error)
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleEditVehicule = async (data: any) => {
+    if (!selectedVehicule) return
+
+    setIsLoading(true)
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
+      const updatedVehicule = updateVehicule(selectedVehicule.id, data)
+      setVehicules(getVehicules())
+      setStats(getVehiculeStats())
+      setIsEditDialogOpen(false)
+      setSelectedVehicule(null)
+
+      toast.success('Véhicule modifié avec succès', {
+        description: `Les informations du véhicule ${updatedVehicule.marque} ${updatedVehicule.modele} ont été mises à jour.`
+      })
+    } catch (error) {
+      toast.error('Erreur lors de la modification du véhicule')
+      console.error('Error updating vehicule:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleDeleteVehicule = async (vehiculeId: string) => {
+    setIsLoading(true)
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
+      const deletedVehicule = deleteVehicule(vehiculeId)
+      setVehicules(getVehicules())
+      setStats(getVehiculeStats())
+      setIsDeleteDialogOpen(false)
+      setSelectedVehicule(null)
+
+      // Remove from selected vehicules if it was selected
+      setSelectedVehicules(prev => prev.filter(id => id !== vehiculeId))
+
+      toast.success('Véhicule supprimé avec succès', {
+        description: `${deletedVehicule.marque} ${deletedVehicule.modele} (${deletedVehicule.immatriculation}) a été supprimé.`
+      })
+    } catch (error) {
+      toast.error('Erreur lors de la suppression du véhicule')
+      console.error('Error deleting vehicule:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleView = (vehicule: Vehicule) => {
+    setSelectedVehicule(vehicule)
+    setIsViewDialogOpen(true)
+  }
+
+  const handleEdit = (vehicule: Vehicule) => {
+    setSelectedVehicule(vehicule)
+    setIsEditDialogOpen(true)
+  }
+
+  const handleDelete = (vehicule: Vehicule) => {
+    setSelectedVehicule(vehicule)
+    setIsDeleteDialogOpen(true)
   }
 
   const handleSelectAll = (checked: boolean) => {
@@ -297,6 +371,7 @@ export default function VehiculesPage() {
                     onCancel={() => setIsAddDialogOpen(false)}
                     clients={clients}
                     isLoading={isLoading}
+                    mode="create"
                   />
                 </DialogContent>
               </Dialog>
@@ -663,11 +738,17 @@ export default function VehiculesPage() {
                               <DropdownMenuContent align="end" className="w-48">
                                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem className="hover:bg-blue-50 hover:text-blue-600">
+                                <DropdownMenuItem
+                                  className="hover:bg-blue-50 hover:text-blue-600"
+                                  onClick={() => handleView(vehicule)}
+                                >
                                   <Eye className="mr-2 h-4 w-4" />
                                   Voir les détails
                                 </DropdownMenuItem>
-                                <DropdownMenuItem className="hover:bg-blue-50 hover:text-blue-600">
+                                <DropdownMenuItem
+                                  className="hover:bg-blue-50 hover:text-blue-600"
+                                  onClick={() => handleEdit(vehicule)}
+                                >
                                   <Edit className="mr-2 h-4 w-4" />
                                   Modifier
                                 </DropdownMenuItem>
@@ -680,7 +761,10 @@ export default function VehiculesPage() {
                                   Générer rapport
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem className="text-red-600 hover:bg-red-50 hover:text-red-700">
+                                <DropdownMenuItem
+                                  className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                                  onClick={() => handleDelete(vehicule)}
+                                >
                                   <Trash2 className="mr-2 h-4 w-4" />
                                   Supprimer
                                 </DropdownMenuItem>
@@ -746,8 +830,8 @@ export default function VehiculesPage() {
                               size="sm"
                               onClick={() => setCurrentPage(pageNum)}
                               className={`w-8 h-8 p-0 ${currentPage === pageNum
-                                  ? 'bg-blue-600 text-white hover:bg-blue-700'
-                                  : 'hover:bg-slate-100'
+                                ? 'bg-blue-600 text-white hover:bg-blue-700'
+                                : 'hover:bg-slate-100'
                                 } transition-colors`}
                             >
                               {pageNum}
@@ -856,12 +940,21 @@ export default function VehiculesPage() {
                     </div>
 
                     <div className="flex items-center justify-between">
-                      <Button variant="outline" size="sm" className="hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-colors">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-colors"
+                        onClick={() => handleView(vehicule)}
+                      >
                         <Eye className="h-3 w-3 mr-1" />
                         Voir
                       </Button>
                       <div className="flex gap-2">
-                        <Button variant="outline" size="sm" className="hover:bg-purple-50 hover:text-purple-600 hover:border-purple-200 transition-colors">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="hover:bg-purple-50 hover:text-purple-600 hover:border-purple-200 transition-colors"
+                        >
                           <Wrench className="h-3 w-3 mr-1" />
                           Maintenance
                         </Button>
@@ -872,7 +965,10 @@ export default function VehiculesPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-48">
-                            <DropdownMenuItem className="hover:bg-blue-50 hover:text-blue-600">
+                            <DropdownMenuItem
+                              className="hover:bg-blue-50 hover:text-blue-600"
+                              onClick={() => handleEdit(vehicule)}
+                            >
                               <Edit className="mr-2 h-4 w-4" />
                               Modifier
                             </DropdownMenuItem>
@@ -881,7 +977,10 @@ export default function VehiculesPage() {
                               Générer rapport
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem className="text-red-600 hover:bg-red-50 hover:text-red-700">
+                            <DropdownMenuItem
+                              className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                              onClick={() => handleDelete(vehicule)}
+                            >
                               <Trash2 className="mr-2 h-4 w-4" />
                               Supprimer
                             </DropdownMenuItem>
@@ -952,6 +1051,43 @@ export default function VehiculesPage() {
           )}
         </div>
       </div>
+
+      {/* Dialogs */}
+      <VehiculeDetailsDialog
+        open={isViewDialogOpen}
+        onOpenChange={setIsViewDialogOpen}
+        vehicule={selectedVehicule}
+        onEdit={handleEdit}
+        clients={clients}
+      />
+
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Modifier le véhicule</DialogTitle>
+            <DialogDescription>
+              Modifiez les informations du véhicule
+            </DialogDescription>
+          </DialogHeader>
+          <VehiculeForm
+            onSubmit={handleEditVehicule}
+            onCancel={() => setIsEditDialogOpen(false)}
+            clients={clients}
+            isLoading={isLoading}
+            initialData={selectedVehicule || undefined}
+            mode="edit"
+          />
+        </DialogContent>
+      </Dialog>
+
+      <VehiculeConfirmationDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        vehicule={selectedVehicule}
+        onConfirm={handleDeleteVehicule}
+        isLoading={isLoading}
+        clients={clients}
+      />
     </div>
   )
 }

@@ -13,7 +13,6 @@ import {
 } from '@/components/ui/select'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
 import { 
   Car, 
   Calendar, 
@@ -25,8 +24,6 @@ import {
   AlertCircle,
   Loader2,
   Calculator,
-  FileText,
-  DollarSign,
   RefreshCw,
   Info
 } from 'lucide-react'
@@ -39,6 +36,7 @@ interface VehiculeFormData {
   numeroSerie: string
   kilometrage: number | null
   clientId: string
+  couleur?: string
 }
 
 interface Client {
@@ -53,22 +51,41 @@ interface VehiculeFormProps {
   onCancel: () => void
   clients: Client[]
   isLoading?: boolean
+  initialData?: VehiculeFormData
+  mode?: 'create' | 'edit'
 }
 
-export function VehiculeForm({ onSubmit, onCancel, clients, isLoading = false }: VehiculeFormProps) {
-  const [formData, setFormData] = useState<VehiculeFormData>({
-    immatriculation: '',
-    marque: '',
-    modele: '',
-    annee: new Date().getFullYear(),
-    numeroSerie: '',
-    kilometrage: null,
-    clientId: ''
-  })
+export function VehiculeForm({ 
+  onSubmit, 
+  onCancel, 
+  clients, 
+  isLoading = false, 
+  initialData,
+  mode = 'create'
+}: VehiculeFormProps) {
+  const [formData, setFormData] = useState<VehiculeFormData>(
+    initialData || {
+      immatriculation: '',
+      marque: '',
+      modele: '',
+      annee: new Date().getFullYear(),
+      numeroSerie: '',
+      kilometrage: null,
+      clientId: '',
+      couleur: ''
+    }
+  )
 
   const [errors, setErrors] = useState<Partial<Record<keyof VehiculeFormData, string>>>({})
   const [isRegularImmat, setIsRegularImmat] = useState(true)
   const [rawImmatriculation, setRawImmatriculation] = useState('')
+
+  useEffect(() => {
+    if (initialData) {
+      setFormData(initialData)
+      setRawImmatriculation(initialData.immatriculation)
+    }
+  }, [initialData])
 
   const validateForm = (): boolean => {
     const newErrors: Partial<Record<keyof VehiculeFormData, string>> = {}
@@ -105,10 +122,8 @@ export function VehiculeForm({ onSubmit, onCancel, clients, isLoading = false }:
   }
 
   const formatImmatriculation = (value: string) => {
-    // Remove all non-alphanumeric characters
     const cleaned = value.replace(/[^A-Z0-9]/g, '').toUpperCase()
     
-    // Format as XX-XXX-XX
     if (cleaned.length <= 2) return cleaned
     if (cleaned.length <= 5) return `${cleaned.slice(0, 2)}-${cleaned.slice(2)}`
     return `${cleaned.slice(0, 2)}-${cleaned.slice(2, 5)}-${cleaned.slice(5, 7)}`
@@ -129,7 +144,6 @@ export function VehiculeForm({ onSubmit, onCancel, clients, isLoading = false }:
     setIsRegularImmat(!isRegularImmat)
     setRawImmatriculation('')
     handleInputChange('immatriculation', '')
-    // Clear errors when switching mode
     if (errors.immatriculation) {
       setErrors(prev => ({ ...prev, immatriculation: undefined }))
     }
@@ -283,36 +297,51 @@ export function VehiculeForm({ onSubmit, onCancel, clients, isLoading = false }:
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="annee" className="font-medium">
-                Année <span className="text-red-500">*</span>
-              </Label>
-              <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <Input
-                  id="annee"
-                  type="number"
-                  value={formData.annee}
-                  onChange={(e) => handleInputChange('annee', parseInt(e.target.value))}
-                  min={1900}
-                  max={new Date().getFullYear() + 1}
-                  className={`pl-10 border-slate-200 focus:border-blue-300 focus:ring-blue-200 transition-colors ${
-                    errors.annee ? 'border-red-300 focus:border-red-400 focus:ring-red-200' : ''
-                  }`}
-                />
-                {!errors.annee && formData.annee >= 1900 && formData.annee <= new Date().getFullYear() + 1 && (
-                  <CheckCircle className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-green-500" />
-                )}
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="annee" className="font-medium">
+                  Année <span className="text-red-500">*</span>
+                </Label>
+                <div className="relative">
+                  <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <Input
+                    id="annee"
+                    type="number"
+                    value={formData.annee}
+                    onChange={(e) => handleInputChange('annee', parseInt(e.target.value))}
+                    min={1900}
+                    max={new Date().getFullYear() + 1}
+                    className={`pl-10 border-slate-200 focus:border-blue-300 focus:ring-blue-200 transition-colors ${
+                      errors.annee ? 'border-red-300 focus:border-red-400 focus:ring-red-200' : ''
+                    }`}
+                  />
+                  {!errors.annee && formData.annee >= 1900 && formData.annee <= new Date().getFullYear() + 1 && (
+                    <CheckCircle className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-green-500" />
+                  )}
+                  {errors.annee && (
+                    <AlertCircle className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-red-500" />
+                  )}
+                </div>
                 {errors.annee && (
-                  <AlertCircle className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-red-500" />
+                  <div className="flex items-center gap-2 text-sm text-red-600">
+                    <AlertCircle className="h-3 w-3" />
+                    {errors.annee}
+                  </div>
                 )}
               </div>
-              {errors.annee && (
-                <div className="flex items-center gap-2 text-sm text-red-600">
-                  <AlertCircle className="h-3 w-3" />
-                  {errors.annee}
+              <div className="space-y-2">
+                <Label htmlFor="couleur" className="font-medium">Couleur</Label>
+                <div className="relative">
+                  <div className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 bg-slate-400 rounded-full" />
+                  <Input
+                    id="couleur"
+                    value={formData.couleur || ''}
+                    onChange={(e) => handleInputChange('couleur', e.target.value)}
+                    placeholder="Blanc"
+                    className="pl-10 border-slate-200 focus:border-blue-300 focus:ring-blue-200 transition-colors"
+                  />
                 </div>
-              )}
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -410,7 +439,6 @@ export function VehiculeForm({ onSubmit, onCancel, clients, isLoading = false }:
                     {clients.map((client) => (
                       <SelectItem key={client.id} value={client.id}>
                         <div className="flex items-center gap-2">
-                          <User className="h-4 w-4 text-slate-400" />
                           {client.prenom} {client.nom}
                           <Badge variant="secondary" className="ml-auto">
                             {client.numeroClient}
@@ -456,7 +484,7 @@ export function VehiculeForm({ onSubmit, onCancel, clients, isLoading = false }:
               </div>
               <div>
                 <h4 className="font-semibold text-slate-900">Récapitulatif</h4>
-                <p className="text-sm text-slate-600 font-normal">Vérifiez les informations avant création</p>
+                <p className="text-sm text-slate-600 font-normal">Vérifiez les informations avant {mode === 'edit' ? 'modification' : 'création'}</p>
               </div>
             </CardTitle>
           </CardHeader>
@@ -483,6 +511,17 @@ export function VehiculeForm({ onSubmit, onCancel, clients, isLoading = false }:
                       : '-'}
                   </span>
                 </div>
+                {formData.couleur && (
+                  <div className="flex justify-between">
+                    <span className="text-slate-600 flex items-center gap-2">
+                      <div className="w-4 h-4 bg-slate-400 rounded-full" />
+                      Couleur:
+                    </span>
+                    <span className="font-medium text-slate-900">
+                      {formData.couleur}
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-slate-600 flex items-center gap-2">
                     <User className="h-4 w-4" />
@@ -530,7 +569,9 @@ export function VehiculeForm({ onSubmit, onCancel, clients, isLoading = false }:
                   <CheckCircle className="h-4 w-4 text-green-600" />
                 </div>
                 <div>
-                  <p className="font-medium text-slate-900">Prêt à enregistrer le véhicule ?</p>
+                  <p className="font-medium text-slate-900">
+                    Prêt à {mode === 'edit' ? 'modifier' : 'enregistrer'} le véhicule ?
+                  </p>
                   <p className="text-sm text-slate-600">Vérifiez que toutes les informations sont correctes</p>
                 </div>
               </div>
@@ -552,12 +593,12 @@ export function VehiculeForm({ onSubmit, onCancel, clients, isLoading = false }:
                   {isLoading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Création...
+                      {mode === 'edit' ? 'Modification...' : 'Création...'}
                     </>
                   ) : (
                     <>
                       <Car className="mr-2 h-4 w-4" />
-                      Créer le Véhicule
+                      {mode === 'edit' ? 'Modifier le Véhicule' : 'Créer le Véhicule'}
                     </>
                   )}
                 </Button>

@@ -65,11 +65,15 @@ import {
   Receipt,
   Building,
   Settings,
-  DollarSign
+  DollarSign,
+  XCircle
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { ODRForm } from '@/components/forms/odr-form'
+import { ODRDeleteConfirmationDialog } from '@/components/dialogs/odr-delete-confirmation-dialog'
+import { ODRDetailsDialog } from '@/components/dialogs/odr-details-dialog'
+import { toast } from 'sonner'
 
 // Mock data
 const mockODR = [
@@ -78,65 +82,95 @@ const mockODR = [
     numeroODR: 'ODR-2024-001',
     date: new Date('2024-01-15T00:00:00Z'),
     dateValidite: new Date('2024-02-15T00:00:00Z'),
+    clientId: '1',
     clientNom: 'Martin Dubois',
     numeroClient: 'CLI-001',
+    vehiculeId: '1',
     immatriculationVehicule: 'AB-123-CD',
     statut: 'EN_COURS',
     typeService: 'CARROSSERIE',
     montantTotal: 1250.80,
-    observations: 'Réparation suite à accident - Pare-choc avant et phare gauche'
+    observations: 'Réparation suite à accident - Pare-choc avant et phare gauche',
+    articles: [
+      { designation: 'Réparation pare-chocs avant', prixUnitaireTTC: 450, quantite: 1 },
+      { designation: 'Remplacement phare gauche', prixUnitaireTTC: 800.80, quantite: 1 }
+    ]
   },
   {
     id: '2',
     numeroODR: 'ODR-2024-002',
     date: new Date('2024-01-16T00:00:00Z'),
     dateValidite: new Date('2024-02-16T00:00:00Z'),
+    clientId: '2',
     clientNom: 'Sophie Lambert',
     numeroClient: 'CLI-002',
+    vehiculeId: '2',
     immatriculationVehicule: 'EF-456-GH',
     statut: 'TERMINE',
     typeService: 'MECANIQUE',
     montantTotal: 450.00,
-    observations: 'Révision complète + changement plaquettes de frein'
+    observations: 'Révision complète + changement plaquettes de frein',
+    articles: [
+      { designation: 'Révision complète', prixUnitaireTTC: 200, quantite: 1 },
+      { designation: 'Changement plaquettes frein', prixUnitaireTTC: 250, quantite: 1 }
+    ]
   },
   {
     id: '3',
     numeroODR: 'ODR-2024-003',
     date: new Date('2024-01-17T00:00:00Z'),
     dateValidite: new Date('2024-02-17T00:00:00Z'),
+    clientId: '3',
     clientNom: 'Pierre Martin',
     numeroClient: 'CLI-003',
+    vehiculeId: '3',
     immatriculationVehicule: 'IJ-789-KL',
     statut: 'EN_COURS',
     typeService: 'MECANIQUE',
     montantTotal: 850.50,
-    observations: 'Diagnostic moteur - Problème de démarrage'
+    observations: 'Diagnostic moteur - Problème de démarrage',
+    articles: [
+      { designation: 'Diagnostic moteur complet', prixUnitaireTTC: 120, quantite: 1 },
+      { designation: 'Réparation système démarrage', prixUnitaireTTC: 730.50, quantite: 1 }
+    ]
   },
   {
     id: '4',
     numeroODR: 'ODR-2024-004',
     date: new Date('2024-01-18T00:00:00Z'),
     dateValidite: new Date('2024-02-18T00:00:00Z'),
+    clientId: '4',
     clientNom: 'Anne Rousseau',
     numeroClient: 'CLI-004',
+    vehiculeId: '4',
     immatriculationVehicule: 'MN-012-OP',
     statut: 'TERMINE',
     typeService: 'CARROSSERIE',
     montantTotal: 2100.00,
-    observations: 'Peinture complète véhicule'
+    observations: 'Peinture complète véhicule',
+    articles: [
+      { designation: 'Préparation carrosserie', prixUnitaireTTC: 600, quantite: 1 },
+      { designation: 'Peinture complète', prixUnitaireTTC: 1500, quantite: 1 }
+    ]
   },
   {
     id: '5',
     numeroODR: 'ODR-2024-005',
     date: new Date('2024-01-19T00:00:00Z'),
     dateValidite: new Date('2024-02-19T00:00:00Z'),
+    clientId: '5',
     clientNom: 'Thomas Durand',
     numeroClient: 'CLI-005',
+    vehiculeId: '5',
     immatriculationVehicule: 'QR-345-ST',
     statut: 'ANNULE',
     typeService: 'MECANIQUE',
     montantTotal: 320.00,
-    observations: 'Vidange - Annulé par le client'
+    observations: 'Vidange - Annulé par le client',
+    articles: [
+      { designation: 'Vidange moteur complète', prixUnitaireTTC: 85, quantite: 1 },
+      { designation: 'Changement filtre air', prixUnitaireTTC: 235, quantite: 1 }
+    ]
   }
 ]
 
@@ -159,21 +193,30 @@ const mockVehicules = [
 const mockPrestations = [
   { id: '1', nom: 'Réparation pare-chocs', prixDeBase: 450, typeService: 'CARROSSERIE' as const },
   { id: '2', nom: 'Vidange moteur', prixDeBase: 85, typeService: 'MECANIQUE' as const },
-  { id: '3', nom: 'Diagnostic moteur', prixDeBase: 120, typeService: 'MECANIQUE' as const }
+  { id: '3', nom: 'Diagnostic moteur', prixDeBase: 120, typeService: 'MECANIQUE' as const },
+  { id: '4', nom: 'Peinture complète', prixDeBase: 1200, typeService: 'CARROSSERIE' as const },
+  { id: '5', nom: 'Changement freins', prixDeBase: 280, typeService: 'MECANIQUE' as const }
 ]
 
 export default function ODRPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [isInitialLoading, setIsInitialLoading] = useState(true)
   const [selectedODR, setSelectedODR] = useState<string[]>([])
+  const [selectedODRForEdit, setSelectedODRForEdit] = useState<any>(null)
+  const [odrList, setOdrList] = useState(mockODR)
   const [sortBy, setSortBy] = useState<'date' | 'client' | 'montant' | 'statut' | 'numero'>('date')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [filterStatut, setFilterStatut] = useState<string>('ALL')
   const [filterService, setFilterService] = useState<string>('ALL')
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage] = useState(10)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [selectedODRForDelete, setSelectedODRForDelete] = useState<any>(null)
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false)
+  const [selectedODRForDetails, setSelectedODRForDetails] = useState<any>(null)
 
   // Load initial data
   useEffect(() => {
@@ -185,7 +228,7 @@ export default function ODRPage() {
     loadData()
   }, [])
 
-  const filteredODR = mockODR.filter(odr => {
+  const filteredODR = odrList.filter(odr => {
     const matchesSearch =
       odr.numeroODR.toLowerCase().includes(searchTerm.toLowerCase()) ||
       odr.clientNom.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -234,15 +277,114 @@ export default function ODRPage() {
     setIsLoading(true)
     try {
       await new Promise(resolve => setTimeout(resolve, 1000))
-      console.log('Creating ODR:', data)
+
+      // Generate new ODR number
+      const newNumber = `ODR-2024-${String(odrList.length + 1).padStart(3, '0')}`
+
+      const newODR = {
+        ...data,
+        id: String(Date.now()),
+        numeroODR: newNumber,
+        date: new Date(),
+        clientNom: mockClients.find(c => c.id === data.clientId)?.prenom + ' ' + mockClients.find(c => c.id === data.clientId)?.nom || '',
+        numeroClient: mockClients.find(c => c.id === data.clientId)?.numeroClient || '',
+        immatriculationVehicule: mockVehicules.find(v => v.id === data.vehiculeId)?.immatriculation || '',
+        montantTotal: data.articles.reduce((sum: number, article: any) => sum + (article.prixUnitaireTTC * article.quantite), 0),
+        statut: 'EN_COURS'
+      }
+
+      setOdrList(prev => [newODR, ...prev])
       setIsAddDialogOpen(false)
+      toast.success('ODR créé avec succès', {
+        description: `L'ordre de réparation ${newNumber} a été créé.`
+      })
     } catch (error) {
+      toast.error('Erreur lors de la création de l\'ODR')
       console.error('Error creating ODR:', error)
     } finally {
       setIsLoading(false)
     }
   }
 
+  const handleUpdateODR = async (data: any) => {
+    setIsLoading(true)
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
+      const updatedODR = {
+        ...data,
+        clientNom: mockClients.find(c => c.id === data.clientId)?.prenom + ' ' + mockClients.find(c => c.id === data.clientId)?.nom || '',
+        numeroClient: mockClients.find(c => c.id === data.clientId)?.numeroClient || '',
+        immatriculationVehicule: mockVehicules.find(v => v.id === data.vehiculeId)?.immatriculation || '',
+        montantTotal: data.articles.reduce((sum: number, article: any) => sum + (article.prixUnitaireTTC * article.quantite), 0)
+      }
+
+      setOdrList(prev => prev.map(odr =>
+        odr.id === data.id ? { ...odr, ...updatedODR } : odr
+      ))
+      setIsEditDialogOpen(false)
+      toast.success('ODR modifié avec succès', {
+        description: `L'ordre de réparation ${data.numeroODR} a été mis à jour.`
+      })
+    } catch (error) {
+      toast.error('Erreur lors de la modification de l\'ODR')
+      console.error('Error updating ODR:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleStatusChange = async (odrId: string, newStatus: string) => {
+    try {
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      setOdrList(prev => prev.map(odr =>
+        odr.id === odrId ? { ...odr, statut: newStatus } : odr
+      ))
+
+      const statusLabels = {
+        'EN_COURS': 'En cours',
+        'TERMINE': 'Terminé',
+        'ANNULE': 'Annulé'
+      }
+
+      toast.success('Statut mis à jour avec succès', {
+        description: `L'ODR est maintenant "${statusLabels[newStatus as keyof typeof statusLabels]}"`
+      })
+    } catch (error) {
+      toast.error('Erreur lors de la mise à jour du statut')
+      console.error('Error updating status:', error)
+    }
+  }
+
+  const handleEditODR = (odr: any) => {
+    setSelectedODRForEdit(odr)
+    setIsEditDialogOpen(true)
+  }
+
+  const handleDeleteODRClick = (odr: any) => {
+    setSelectedODRForDelete(odr)
+    setIsDeleteDialogOpen(true)
+  }
+
+  const handleDeleteODR = async (odrId: string) => {
+    setIsLoading(true)
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
+      const odr = odrList.find(o => o.id === odrId)
+      setOdrList(prev => prev.filter(o => o.id !== odrId))
+      setIsDeleteDialogOpen(false)
+      toast.success('ODR supprimé avec succès', {
+        description: `L'ordre de réparation ${odr?.numeroODR} a été supprimé.`
+      })
+    } catch (error) {
+      toast.error('Erreur lors de la suppression de l\'ODR')
+      console.error('Error deleting ODR:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
       setSelectedODR(paginatedODR.map(odr => odr.id))
@@ -272,12 +414,6 @@ export default function ODRPage() {
     }
   }
 
-  const getServiceIcon = (typeService: string) => {
-    return typeService === 'CARROSSERIE' ?
-      <PaintBucket className="h-4 w-4" /> :
-      <Wrench className="h-4 w-4" />
-  }
-
   const getServiceBadge = (typeService: string) => {
     return typeService === 'CARROSSERIE' ?
       <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100">
@@ -288,6 +424,40 @@ export default function ODRPage() {
         <Wrench className="mr-1 h-3 w-3" />
         Mécanique
       </Badge>
+  }
+
+  const handleViewODRDetails = (odr: any) => {
+    // Expand the ODR data with additional details
+    const detailedODR = {
+      ...odr,
+      clientEmail: 'client@email.com', // You'd get this from your client data
+      clientTelephone: '06 12 34 56 78', // You'd get this from your client data
+      marqueVehicule: 'Peugeot', // You'd get this from your vehicle data
+      modeleVehicule: '308', // You'd get this from your vehicle data
+      montantHT: odr.montantTotal / 1.2, // Calculate HT from TTC
+      tva: 20,
+      prestations: [
+        {
+          id: '1',
+          nom: 'Vidange moteur',
+          quantite: 1,
+          prixUnitaire: 45.00,
+          total: 45.00
+        },
+        {
+          id: '2',
+          nom: 'Changement plaquettes de frein',
+          quantite: 1,
+          prixUnitaire: 120.00,
+          total: 120.00
+        }
+      ],
+      createdAt: odr.date,
+      updatedAt: new Date().toISOString()
+    }
+
+    setSelectedODRForDetails(detailedODR)
+    setIsDetailsDialogOpen(true)
   }
 
   const clearFilters = () => {
@@ -302,11 +472,11 @@ export default function ODRPage() {
   const hasActiveFilters = searchTerm || filterStatut !== 'ALL' || filterService !== 'ALL'
 
   // Calculate stats
-  const totalODR = mockODR.length
-  const odrEnCours = mockODR.filter(o => o.statut === 'EN_COURS').length
-  const odrTermines = mockODR.filter(o => o.statut === 'TERMINE').length
-  const montantTotal = mockODR.reduce((sum, odr) => sum + odr.montantTotal, 0)
-  const montantMoyen = montantTotal / totalODR
+  const totalODR = odrList.length
+  const odrEnCours = odrList.filter(o => o.statut === 'EN_COURS').length
+  const odrTermines = odrList.filter(o => o.statut === 'TERMINE').length
+  const montantTotal = odrList.reduce((sum, odr) => sum + odr.montantTotal, 0)
+  const montantMoyen = totalODR > 0 ? montantTotal / totalODR : 0
 
   // Pagination navigation
   const goToFirstPage = () => setCurrentPage(1)
@@ -580,8 +750,8 @@ export default function ODRPage() {
                   {hasActiveFilters && (
                     <span className="text-blue-600 ml-1">(filtré{filteredODR.length > 1 ? 's' : ''})</span>
                   )}
-                  {filteredODR.length !== mockODR.length && (
-                    <span className="text-slate-400 ml-1">sur {mockODR.length}</span>
+                  {filteredODR.length !== odrList.length && (
+                    <span className="text-slate-400 ml-1">sur {odrList.length}</span>
                   )}
                 </p>
 
@@ -691,7 +861,6 @@ export default function ODRPage() {
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
-                            
                               <div>
                                 <div className="text-sm font-medium text-slate-900">
                                   {format(odr.date, 'dd/MM/yyyy', { locale: fr })}
@@ -714,7 +883,6 @@ export default function ODRPage() {
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
-                            
                               <Badge variant="outline" className="font-mono">
                                 {odr.immatriculationVehicule}
                               </Badge>
@@ -751,14 +919,54 @@ export default function ODRPage() {
                               <DropdownMenuContent align="end" className="w-48">
                                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem className="hover:bg-blue-50 hover:text-blue-600">
+                                <DropdownMenuItem
+                                  className="hover:bg-blue-50 hover:text-blue-600"
+                                  onClick={() => handleViewODRDetails(odr)}
+                                >
                                   <Eye className="mr-2 h-4 w-4" />
                                   Voir les détails
                                 </DropdownMenuItem>
-                                <DropdownMenuItem className="hover:bg-blue-50 hover:text-blue-600">
+                                <DropdownMenuItem
+                                  className="hover:bg-blue-50 hover:text-blue-600"
+                                  onClick={() => handleEditODR(odr)}
+                                >
                                   <Edit className="mr-2 h-4 w-4" />
                                   Modifier
                                 </DropdownMenuItem>
+
+                                {/* Status Update Options */}
+                                {odr.statut !== 'TERMINE' && (
+                                  <DropdownMenuItem
+                                    className="hover:bg-green-50 hover:text-green-600"
+                                    onClick={() => handleStatusChange(odr.id, 'TERMINE')}
+                                  >
+                                    <CheckCircle className="mr-2 h-4 w-4" />
+                                    Marquer terminé
+                                  </DropdownMenuItem>
+                                )}
+
+                                {odr.statut !== 'EN_COURS' && odr.statut !== 'ANNULE' && (
+                                  <DropdownMenuItem
+                                    className="hover:bg-blue-50 hover:text-blue-600"
+                                    onClick={() => handleStatusChange(odr.id, 'EN_COURS')}
+                                  >
+                                    <Clock className="mr-2 h-4 w-4" />
+                                    Remettre en cours
+                                  </DropdownMenuItem>
+                                )}
+
+                                {odr.statut !== 'ANNULE' && (
+                                  <DropdownMenuItem
+                                    className="hover:bg-red-50 hover:text-red-600"
+                                    onClick={() => handleStatusChange(odr.id, 'ANNULE')}
+                                  >
+                                    <XCircle className="mr-2 h-4 w-4" />
+                                    Annuler
+                                  </DropdownMenuItem>
+                                )}
+
+                                <DropdownMenuSeparator />
+
                                 <DropdownMenuItem className="hover:bg-purple-50 hover:text-purple-600">
                                   <Receipt className="mr-2 h-4 w-4" />
                                   Générer facture
@@ -767,17 +975,11 @@ export default function ODRPage() {
                                   <Download className="mr-2 h-4 w-4" />
                                   Télécharger PDF
                                 </DropdownMenuItem>
-                                {odr.statut === 'EN_COURS' && (
-                                  <>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem className="hover:bg-green-50 hover:text-green-600">
-                                      <CheckCircle className="mr-2 h-4 w-4" />
-                                      Marquer terminé
-                                    </DropdownMenuItem>
-                                  </>
-                                )}
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem className="text-red-600 hover:bg-red-50 hover:text-red-700">
+                                <DropdownMenuItem
+                                  className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                                  onClick={() => handleDeleteODRClick(odr)}
+                                >
                                   <Trash2 className="mr-2 h-4 w-4" />
                                   Supprimer
                                 </DropdownMenuItem>
@@ -843,8 +1045,8 @@ export default function ODRPage() {
                               size="sm"
                               onClick={() => setCurrentPage(pageNum)}
                               className={`w-8 h-8 p-0 ${currentPage === pageNum
-                                  ? 'bg-blue-600 text-white hover:bg-blue-700'
-                                  : 'hover:bg-slate-100'
+                                ? 'bg-blue-600 text-white hover:bg-blue-700'
+                                : 'hover:bg-slate-100'
                                 } transition-colors`}
                             >
                               {pageNum}
@@ -960,17 +1162,30 @@ export default function ODRPage() {
                     </div>
 
                     <div className="flex items-center justify-between">
-                      <Button variant="outline" size="sm" className="hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-colors">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-colors"
+                      >
                         <Eye className="h-3 w-3 mr-1" />
                         Voir
                       </Button>
                       <div className="flex gap-2">
-                        <Button variant="outline" size="sm" className="hover:bg-purple-50 hover:text-purple-600 hover:border-purple-200 transition-colors">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="hover:bg-purple-50 hover:text-purple-600 hover:border-purple-200 transition-colors"
+                        >
                           <Receipt className="h-3 w-3 mr-1" />
                           Facturer
                         </Button>
                         {odr.statut === 'EN_COURS' && (
-                          <Button variant="outline" size="sm" className="hover:bg-green-50 hover:text-green-600 hover:border-green-200 transition-colors">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="hover:bg-green-50 hover:text-green-600 hover:border-green-200 transition-colors"
+                            onClick={() => handleStatusChange(odr.id, 'TERMINE')}
+                          >
                             <CheckCircle className="h-3 w-3 mr-1" />
                             Terminer
                           </Button>
@@ -982,10 +1197,45 @@ export default function ODRPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-48">
-                            <DropdownMenuItem className="hover:bg-blue-50 hover:text-blue-600">
+                            <DropdownMenuItem
+                              className="hover:bg-blue-50 hover:text-blue-600"
+                              onClick={() => handleEditODR(odr)}
+                            >
                               <Edit className="mr-2 h-4 w-4" />
                               Modifier
                             </DropdownMenuItem>
+
+                            {/* Mobile Status Updates */}
+                            {odr.statut !== 'TERMINE' && (
+                              <DropdownMenuItem
+                                className="hover:bg-green-50 hover:text-green-600"
+                                onClick={() => handleStatusChange(odr.id, 'TERMINE')}
+                              >
+                                <CheckCircle className="mr-2 h-4 w-4" />
+                                Marquer terminé
+                              </DropdownMenuItem>
+                            )}
+
+                            {odr.statut !== 'EN_COURS' && odr.statut !== 'ANNULE' && (
+                              <DropdownMenuItem
+                                className="hover:bg-blue-50 hover:text-blue-600"
+                                onClick={() => handleStatusChange(odr.id, 'EN_COURS')}
+                              >
+                                <Clock className="mr-2 h-4 w-4" />
+                                Remettre en cours
+                              </DropdownMenuItem>
+                            )}
+
+                            {odr.statut !== 'ANNULE' && (
+                              <DropdownMenuItem
+                                className="hover:bg-red-50 hover:text-red-600"
+                                onClick={() => handleStatusChange(odr.id, 'ANNULE')}
+                              >
+                                <XCircle className="mr-2 h-4 w-4" />
+                                Annuler
+                              </DropdownMenuItem>
+                            )}
+
                             <DropdownMenuItem className="hover:bg-green-50 hover:text-green-600">
                               <Download className="mr-2 h-4 w-4" />
                               Télécharger PDF
@@ -1062,6 +1312,45 @@ export default function ODRPage() {
           )}
         </div>
       </div>
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Modifier l'ordre de réparation</DialogTitle>
+            <DialogDescription>
+              Modifiez les informations de l'ODR {selectedODRForEdit?.numeroODR}
+            </DialogDescription>
+          </DialogHeader>
+          <ODRForm
+            onSubmit={handleUpdateODR}
+            onCancel={() => setIsEditDialogOpen(false)}
+            clients={mockClients}
+            vehicules={mockVehicules}
+            prestations={mockPrestations}
+            isLoading={isLoading}
+            initialData={selectedODRForEdit}
+            isEdit={true}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <ODRDeleteConfirmationDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        odr={selectedODRForDelete}
+        onConfirm={handleDeleteODR}
+        isLoading={isLoading}
+      />
+
+      {/* Details Dialog */}
+      <ODRDetailsDialog
+        open={isDetailsDialogOpen}
+        onOpenChange={setIsDetailsDialogOpen}
+        odr={selectedODRForDetails}
+        onEdit={handleEditODR}
+      />
     </div>
   )
 }

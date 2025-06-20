@@ -65,12 +65,16 @@ import {
   Loader2
 } from 'lucide-react'
 import { ClientForm } from '@/components/forms/client-form'
-import { getClients, addClient, getClientStats, type Client } from '@/lib/mock-data'
+import { DeleteConfirmationDialog } from '@/components/dialogs/delete-confirmation-dialog'
+import { ClientDetailsDialog } from '@/components/dialogs/client-details-dialog'
+import { getClients, addClient, updateClient, deleteClient, getClientStats, type Client } from '@/lib/mock-data'
 import { toast } from 'sonner'
 
 export default function ClientsPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [clients, setClients] = useState<Client[]>([])
   const [stats, setStats] = useState({ totalClients: 0, grandsComptes: 0, nouveauxClientsMois: 0 })
@@ -81,6 +85,8 @@ export default function ClientsPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage] = useState(10)
   const [isInitialLoading, setIsInitialLoading] = useState(true)
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null)
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
 
   // Load initial data
   useEffect(() => {
@@ -95,13 +101,14 @@ export default function ClientsPage() {
     loadData()
   }, [])
 
+  // Fixed filteredClients with proper null/undefined checks
   const filteredClients = clients.filter(client => {
     const matchesSearch =
-      client.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      client.prenom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      client.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      client.numeroClient.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (client.entreprise && client.entreprise.toLowerCase().includes(searchTerm.toLowerCase()))
+      (client.nom || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (client.prenom || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (client.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (client.numeroClient || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (client.entreprise || '').toLowerCase().includes(searchTerm.toLowerCase())
 
     const matchesFilter = filterType === 'ALL' || client.typeClient === filterType
 
@@ -114,7 +121,7 @@ export default function ClientsPage() {
 
     switch (sortBy) {
       case 'nom':
-        comparison = `${a.prenom} ${a.nom}`.localeCompare(`${b.prenom} ${b.nom}`)
+        comparison = `${a.prenom || ''} ${a.nom || ''}`.localeCompare(`${b.prenom || ''} ${b.nom || ''}`)
         break
       case 'date':
         comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
@@ -139,7 +146,20 @@ export default function ClientsPage() {
     try {
       await new Promise(resolve => setTimeout(resolve, 1000))
 
-      const newClient = addClient(data)
+      // Transform the nomPrenom data for the backend
+      const [prenom = '', ...nomParts] = (data.nomPrenom || '').trim().split(' ')
+      const nom = nomParts.join(' ')
+
+      const clientData = {
+        ...data,
+        prenom,
+        nom
+      }
+
+      // Remove nomPrenom since it's not part of the backend structure
+      delete clientData.nomPrenom
+
+      const newClient = addClient(clientData)
       setClients(getClients())
       setStats(getClientStats())
       setIsAddDialogOpen(false)
@@ -153,6 +173,73 @@ export default function ClientsPage() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleEditClient = async (data: any) => {
+    if (!selectedClient) return
+
+    setIsLoading(true)
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
+      // Transform the nomPrenom data for the backend
+      const [prenom = '', ...nomParts] = (data.nomPrenom || '').trim().split(' ')
+      const nom = nomParts.join(' ')
+
+      const clientData = {
+        ...data,
+        prenom,
+        nom
+      }
+
+      // Remove nomPrenom since it's not part of the backend structure
+      delete clientData.nomPrenom
+
+      const updatedClient = updateClient(selectedClient.id, clientData)
+      setClients(getClients())
+      setStats(getClientStats())
+      setIsEditDialogOpen(false)
+      setSelectedClient(null)
+
+      toast.success('Client modifié avec succès', {
+        description: `Les informations de ${updatedClient.prenom} ${updatedClient.nom} ont été mises à jour.`
+      })
+    } catch (error) {
+      toast.error('Erreur lors de la modification du client')
+      console.error('Error updating client:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleDeleteClient = async (clientId: string) => {
+    setIsLoading(true)
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
+      const deletedClient = deleteClient(clientId)
+      setClients(getClients())
+      setStats(getClientStats())
+      setIsDeleteDialogOpen(false)
+      setSelectedClient(null)
+
+      // Remove from selected clients if it was selected
+      setSelectedClients(prev => prev.filter(id => id !== clientId))
+
+      toast.success('Client supprimé avec succès', {
+        description: `${deletedClient.prenom} ${deletedClient.nom} a été supprimé de votre base de données.`
+      })
+    } catch (error) {
+      toast.error('Erreur lors de la suppression du client')
+      console.error('Error deleting client:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleView = (client: Client) => {
+    setSelectedClient(client)
+    setIsViewDialogOpen(true)
   }
 
   const vehiculesCount = (clientId: string) => {
@@ -175,6 +262,16 @@ export default function ClientsPage() {
     }
   }
 
+  const handleEdit = (client: Client) => {
+    setSelectedClient(client)
+    setIsEditDialogOpen(true)
+  }
+
+  const handleDelete = (client: Client) => {
+    setSelectedClient(client)
+    setIsDeleteDialogOpen(true)
+  }
+
   const clearFilters = () => {
     setSearchTerm('')
     setFilterType('ALL')
@@ -184,7 +281,9 @@ export default function ClientsPage() {
   }
 
   const getClientInitials = (client: Client) => {
-    return `${client.prenom.charAt(0)}${client.nom.charAt(0)}`.toUpperCase()
+    const prenom = client.prenom || ''
+    const nom = client.nom || ''
+    return `${prenom.charAt(0)}${nom.charAt(0)}`.toUpperCase()
   }
 
   const hasActiveFilters = searchTerm || filterType !== 'ALL'
@@ -251,6 +350,7 @@ export default function ClientsPage() {
                     </DialogDescription>
                   </DialogHeader>
                   <ClientForm
+                    mode="create"
                     onSubmit={handleCreateClient}
                     onCancel={() => setIsAddDialogOpen(false)}
                     isLoading={isLoading}
@@ -516,14 +616,14 @@ export default function ClientsPage() {
                           <TableCell>
                             <div className="flex items-center gap-3">
                               <Avatar className="h-10 w-10 ring-2 ring-slate-100">
-                                <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${client.prenom}${client.nom}`} />
+                                <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${client.prenom || ''}${client.nom || ''}`} />
                                 <AvatarFallback className="bg-blue-100 text-blue-700 font-medium">
                                   {getClientInitials(client)}
                                 </AvatarFallback>
                               </Avatar>
                               <div>
-                                <div className="font-medium text-slate-900">{client.prenom} {client.nom}</div>
-                                <div className="text-sm text-slate-500 font-mono">{client.numeroClient}</div>
+                                <div className="font-medium text-slate-900">{client.prenom || ''} {client.nom || ''}</div>
+                                <div className="text-sm text-slate-500 font-mono">{client.numeroClient || ''}</div>
                               </div>
                             </div>
                           </TableCell>
@@ -531,13 +631,13 @@ export default function ClientsPage() {
                             <div className="space-y-1">
                               <div className="flex items-center text-sm">
                                 <Mail className="mr-2 h-3 w-3 text-slate-400" />
-                                <span className="text-slate-700 truncate max-w-[200px]" title={client.email}>
-                                  {client.email}
+                                <span className="text-slate-700 truncate max-w-[200px]" title={client.email || ''}>
+                                  {client.email || ''}
                                 </span>
                               </div>
                               <div className="flex items-center text-sm">
                                 <Phone className="mr-2 h-3 w-3 text-slate-400" />
-                                <span className="text-slate-700">{client.telephone}</span>
+                                <span className="text-slate-700">{client.telephone || ''}</span>
                               </div>
                             </div>
                           </TableCell>
@@ -582,7 +682,6 @@ export default function ClientsPage() {
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1 text-sm text-slate-600">
-                              
                               {new Date(client.createdAt).toLocaleDateString('fr-FR')}
                             </div>
                           </TableCell>
@@ -596,20 +695,26 @@ export default function ClientsPage() {
                               <DropdownMenuContent align="end" className="w-48">
                                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem className="hover:bg-blue-50 hover:text-blue-600">
+                                <DropdownMenuItem
+                                  className="hover:bg-blue-50 hover:text-blue-600"
+                                  onClick={() => handleView(client)}
+                                >
                                   <Eye className="mr-2 h-4 w-4" />
                                   Voir le profil
                                 </DropdownMenuItem>
-                                <DropdownMenuItem className="hover:bg-blue-50 hover:text-blue-600">
+                                <DropdownMenuItem
+                                  className="hover:bg-blue-50 hover:text-blue-600"
+                                  onClick={() => handleEdit(client)}
+                                >
                                   <Edit className="mr-2 h-4 w-4" />
                                   Modifier
                                 </DropdownMenuItem>
-                                <DropdownMenuItem className="hover:bg-blue-50 hover:text-blue-600">
-                                  <Mail className="mr-2 h-4 w-4" />
-                                  Envoyer un email
-                                </DropdownMenuItem>
+
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem className="text-red-600 hover:bg-red-50 hover:text-red-700">
+                                <DropdownMenuItem
+                                  className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                                  onClick={() => handleDelete(client)}
+                                >
                                   <Trash2 className="mr-2 h-4 w-4" />
                                   Supprimer
                                 </DropdownMenuItem>
@@ -690,8 +795,8 @@ export default function ClientsPage() {
                               size="sm"
                               onClick={() => setCurrentPage(pageNum)}
                               className={`w-8 h-8 p-0 ${currentPage === pageNum
-                                  ? 'bg-blue-600 text-white hover:bg-blue-700'
-                                  : 'hover:bg-slate-100'
+                                ? 'bg-blue-600 text-white hover:bg-blue-700'
+                                : 'hover:bg-slate-100'
                                 } transition-colors`}
                             >
                               {pageNum}
@@ -740,7 +845,7 @@ export default function ClientsPage() {
                       <div className="flex items-center gap-3">
                         <div className="relative">
                           <Avatar className="h-12 w-12 ring-2 ring-slate-100">
-                            <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${client.prenom}${client.nom}`} />
+                            <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${client.prenom || ''}${client.nom || ''}`} />
                             <AvatarFallback className="bg-blue-100 text-blue-700 font-medium">
                               {getClientInitials(client)}
                             </AvatarFallback>
@@ -752,8 +857,8 @@ export default function ClientsPage() {
                           />
                         </div>
                         <div>
-                          <h3 className="font-semibold text-slate-900">{client.prenom} {client.nom}</h3>
-                          <p className="text-sm text-slate-500 font-mono">{client.numeroClient}</p>
+                          <h3 className="font-semibold text-slate-900">{client.prenom || ''} {client.nom || ''}</h3>
+                          <p className="text-sm text-slate-500 font-mono">{client.numeroClient || ''}</p>
                         </div>
                       </div>
                       <Badge
@@ -775,11 +880,11 @@ export default function ClientsPage() {
                     <div className="space-y-2 mb-4">
                       <div className="flex items-center text-sm text-slate-600">
                         <Mail className="mr-2 h-3 w-3 text-slate-400" />
-                        <span className="truncate">{client.email}</span>
+                        <span className="truncate">{client.email || ''}</span>
                       </div>
                       <div className="flex items-center text-sm text-slate-600">
                         <Phone className="mr-2 h-3 w-3 text-slate-400" />
-                        {client.telephone}
+                        {client.telephone || ''}
                       </div>
                       {client.entreprise && (
                         <div className="flex items-center text-sm text-slate-600">
@@ -801,9 +906,23 @@ export default function ClientsPage() {
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        <Button variant="outline" size="sm" className="hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-colors">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-colors"
+                          onClick={() => handleView(client)}
+                        >
                           <Eye className="h-3 w-3 mr-1" />
                           Voir
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-colors"
+                          onClick={() => handleEdit(client)}
+                        >
+                          <Edit className="h-3 w-3 mr-1" />
+                          Modifier
                         </Button>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -812,16 +931,11 @@ export default function ClientsPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-48">
-                            <DropdownMenuItem className="hover:bg-blue-50 hover:text-blue-600">
-                              <Edit className="mr-2 h-4 w-4" />
-                              Modifier
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="hover:bg-blue-50 hover:text-blue-600">
-                              <Mail className="mr-2 h-4 w-4" />
-                              Envoyer un email
-                            </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem className="text-red-600 hover:bg-red-50 hover:text-red-700">
+                            <DropdownMenuItem
+                              className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                              onClick={() => handleDelete(client)}
+                            >
                               <Trash2 className="mr-2 h-4 w-4" />
                               Supprimer
                             </DropdownMenuItem>
@@ -892,6 +1006,49 @@ export default function ClientsPage() {
           )}
         </div>
       </div>
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Modifier le client</DialogTitle>
+            <DialogDescription>
+              Modifiez les informations du client
+            </DialogDescription>
+          </DialogHeader>
+          <ClientForm
+            mode="edit"
+            initialData={selectedClient}
+            onSubmit={handleEditClient}
+            onCancel={() => {
+              setIsEditDialogOpen(false)
+              setSelectedClient(null)
+            }}
+            isLoading={isLoading}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmationDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        client={selectedClient}
+        onConfirm={handleDeleteClient}
+        isLoading={isLoading}
+      />
+
+      {/* View Details Dialog */}
+      <ClientDetailsDialog
+        open={isViewDialogOpen}
+        onOpenChange={setIsViewDialogOpen}
+        client={selectedClient}
+        onEdit={(client) => {
+          setSelectedClient(client)
+          setIsViewDialogOpen(false)
+          setIsEditDialogOpen(true)
+        }}
+      />
     </div>
   )
 }

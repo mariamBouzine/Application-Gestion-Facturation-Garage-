@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -37,10 +37,13 @@ import {
   UserPlus,
   Loader2,
   DollarSign,
-  Building
+  Building,
+  MapPin,
+  Clock
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
+import React from 'react'
 
 interface ArticleFormData {
   designation: string
@@ -50,6 +53,7 @@ interface ArticleFormData {
 }
 
 interface DevisFormData {
+  id?: string
   clientId: string
   vehiculeId: string
   typeService: 'CARROSSERIE' | 'MECANIQUE'
@@ -90,31 +94,72 @@ interface DevisFormProps {
   vehicules: Vehicule[]
   prestations: Prestation[]
   isLoading?: boolean
+  initialData?: any
+  isEdit?: boolean
 }
 
-export function DevisForm({ onSubmit, onCancel, clients, vehicules, prestations, isLoading = false }: DevisFormProps) {
-  const [formData, setFormData] = useState<DevisFormData>({
-    clientId: '',
-    vehiculeId: '',
-    typeService: 'CARROSSERIE',
-    dateValidite: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 jours
-    conditionsPaiement: 'Paiement à 30 jours',
-    pourcentageAcompte: 0,
-    moyensPaiementAcceptes: ['VIREMENT', 'CHEQUE'],
-    compteBancaire: '',
-    articles: [{ designation: '', prixUnitaireTTC: 0, quantite: 1 }]
-  })
+export function DevisForm({
+  onSubmit,
+  onCancel,
+  clients,
+  vehicules,
+  prestations,
+  isLoading = false,
+  initialData,
+  isEdit = false
+}: DevisFormProps) {
+  // Initialize form data with proper defaults
+  const getInitialFormData = useCallback((): DevisFormData => {
+    if (initialData && isEdit) {
+      return {
+        id: initialData.id,
+        clientId: initialData.clientId || '',
+        vehiculeId: initialData.vehiculeId || '',
+        typeService: initialData.typeService || 'CARROSSERIE',
+        dateValidite: initialData.dateValidite ? new Date(initialData.dateValidite) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        conditionsPaiement: initialData.conditionsPaiement || 'Paiement à 30 jours',
+        pourcentageAcompte: initialData.pourcentageAcompte || 0,
+        moyensPaiementAcceptes: initialData.moyensPaiementAcceptes || ['VIREMENT', 'CHEQUE'],
+        compteBancaire: initialData.compteBancaire || '',
+        articles: initialData.articles && initialData.articles.length > 0
+          ? initialData.articles
+          : [{ designation: '', prixUnitaireTTC: 0, quantite: 1 }]
+      }
+    }
+    return {
+      clientId: '',
+      vehiculeId: '',
+      typeService: 'CARROSSERIE',
+      dateValidite: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      conditionsPaiement: 'Paiement à 30 jours',
+      pourcentageAcompte: 0,
+      moyensPaiementAcceptes: ['VIREMENT', 'CHEQUE'],
+      compteBancaire: '',
+      articles: [{ designation: '', prixUnitaireTTC: 0, quantite: 1 }]
+    }
+  }, [initialData, isEdit])
 
+  const [formData, setFormData] = useState<DevisFormData>(getInitialFormData)
   const [errors, setErrors] = useState<any>({})
 
-  const validateForm = (): boolean => {
+  // Reset form when initialData changes (for edit mode)
+  useEffect(() => {
+    if (isEdit && initialData) {
+      setFormData(getInitialFormData())
+      setErrors({})
+    }
+  }, [initialData, isEdit, getInitialFormData])
+
+  // Improved validation function
+  const validateForm = useCallback((data: DevisFormData): { [key: string]: string } => {
     const newErrors: any = {}
 
-    if (!formData.clientId) newErrors.clientId = 'Le client est requis'
-    if (!formData.vehiculeId) newErrors.vehiculeId = 'Le véhicule est requis'
-    if (!formData.dateValidite) newErrors.dateValidite = 'La date de validité est requise'
+    if (!data.clientId) newErrors.clientId = 'Le client est requis'
+    if (!data.vehiculeId) newErrors.vehiculeId = 'Le véhicule est requis'
+    if (!data.dateValidite) newErrors.dateValidite = 'La date de validité est requise'
 
-    formData.articles.forEach((article, index) => {
+    // Validate articles
+    data.articles.forEach((article, index) => {
       if (!article.designation.trim()) {
         newErrors[`article_${index}_designation`] = 'La désignation est requise'
       }
@@ -126,67 +171,97 @@ export function DevisForm({ onSubmit, onCancel, clients, vehicules, prestations,
       }
     })
 
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
+    return newErrors
+  }, [])
+
+  // Real-time validation on form changes
+  useEffect(() => {
+    const validationErrors = validateForm(formData)
+    setErrors(validationErrors)
+  }, [formData, validateForm])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (validateForm()) {
+    const validationErrors = validateForm(formData)
+
+    if (Object.keys(validationErrors).length === 0) {
       onSubmit(formData)
+    } else {
+      setErrors(validationErrors)
+      // Focus on first error
+      const firstErrorKey = Object.keys(validationErrors)[0]
+      const firstErrorElement = document.querySelector(`[name="${firstErrorKey}"]`) as HTMLElement
+      firstErrorElement?.focus()
     }
   }
 
-  const handleInputChange = (field: keyof DevisFormData, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
-    if (errors[field]) {
-      setErrors((prev: any) => ({ ...prev, [field]: undefined }))
-    }
-  }
+  const handleInputChange = useCallback((field: keyof DevisFormData, value: any) => {
+    setFormData(prev => {
+      const newData = { ...prev, [field]: value }
 
-  const handleArticleChange = (index: number, field: keyof ArticleFormData, value: any) => {
-    const newArticles = [...formData.articles]
-    newArticles[index] = { ...newArticles[index], [field]: value }
-    setFormData(prev => ({ ...prev, articles: newArticles }))
-  }
+      // Reset vehicle when client changes
+      if (field === 'clientId') {
+        newData.vehiculeId = ''
+      }
 
-  const addArticle = () => {
+      return newData
+    })
+  }, [])
+
+  const handleArticleChange = useCallback((index: number, field: keyof ArticleFormData, value: any) => {
+    setFormData(prev => {
+      const newArticles = [...prev.articles]
+      newArticles[index] = { ...newArticles[index], [field]: value }
+      return { ...prev, articles: newArticles }
+    })
+  }, [])
+
+  const addArticle = useCallback(() => {
     setFormData(prev => ({
       ...prev,
       articles: [...prev.articles, { designation: '', prixUnitaireTTC: 0, quantite: 1 }]
     }))
-  }
+  }, [])
 
-  const removeArticle = (index: number) => {
+  const removeArticle = useCallback((index: number) => {
     if (formData.articles.length > 1) {
       setFormData(prev => ({
         ...prev,
         articles: prev.articles.filter((_, i) => i !== index)
       }))
     }
-  }
+  }, [formData.articles.length])
 
-  const addPrestationToArticle = (index: number, prestationId: string) => {
+  const addPrestationToArticle = useCallback((index: number, prestationId: string) => {
     const prestation = prestations.find(p => p.id === prestationId)
     if (prestation) {
-      handleArticleChange(index, 'designation', prestation.nom)
-      handleArticleChange(index, 'prixUnitaireTTC', prestation.prixDeBase)
-      handleArticleChange(index, 'prestationId', prestationId)
+      setFormData(prev => {
+        const newArticles = [...prev.articles]
+        newArticles[index] = {
+          ...newArticles[index],
+          designation: prestation.nom,
+          prixUnitaireTTC: prestation.prixDeBase,
+          prestationId: prestationId
+        }
+        return { ...prev, articles: newArticles }
+      })
     }
-  }
+  }, [prestations])
 
+  // Memoized filtered data
   const filteredVehicules = vehicules.filter(v => v.clientId === formData.clientId)
   const filteredPrestations = prestations.filter(p => p.typeService === formData.typeService)
 
-  const calculateTotal = () => {
-    const totalHT = formData.articles.reduce((sum, article) =>
+  // Memoized calculations
+  const totals = React.useMemo(() => {
+    const totalTTC = formData.articles.reduce((sum, article) =>
       sum + (article.prixUnitaireTTC * article.quantite), 0)
-    const tva = totalHT * 0.20
-    const totalTTC = totalHT + tva
+    const totalHT = totalTTC / 1.2 // Assuming 20% VAT
+    const tva = totalTTC - totalHT
     return { totalHT, tva, totalTTC }
-  }
+  }, [formData.articles])
 
-  const { totalHT, tva, totalTTC } = calculateTotal()
+  const { totalHT, tva, totalTTC } = totals
 
   return (
     <div className="space-y-6">
@@ -212,11 +287,11 @@ export function DevisForm({ onSubmit, onCancel, clients, vehicules, prestations,
                 </Label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 z-10" />
-                  <Select value={formData.clientId} onValueChange={(value) => {
-                    handleInputChange('clientId', value)
-                    handleInputChange('vehiculeId', '') // Reset vehicle when client changes
-                  }}>
-                    <SelectTrigger className={`pl-10 border-slate-200 focus:border-blue-300 focus:ring-blue-200 transition-colors ${errors.clientId ? 'border-red-300 focus:border-red-400 focus:ring-red-200' : ''
+                  <Select
+                    value={formData.clientId}
+                    onValueChange={(value) => handleInputChange('clientId', value)}
+                  >
+                    <SelectTrigger className={`pl-10 pr-10 border-slate-200 focus:border-blue-300 focus:ring-blue-200 transition-colors ${errors.clientId ? 'border-red-300 focus:border-red-400 focus:ring-red-200' : ''
                       }`}>
                       <SelectValue placeholder="Sélectionner un client" />
                     </SelectTrigger>
@@ -257,7 +332,7 @@ export function DevisForm({ onSubmit, onCancel, clients, vehicules, prestations,
                     onValueChange={(value) => handleInputChange('vehiculeId', value)}
                     disabled={!formData.clientId}
                   >
-                    <SelectTrigger className={`pl-10 border-slate-200 focus:border-blue-300 focus:ring-blue-200 transition-colors ${errors.vehiculeId ? 'border-red-300 focus:border-red-400 focus:ring-red-200' : ''
+                    <SelectTrigger className={`pl-10 pr-10 border-slate-200 focus:border-blue-300 focus:ring-blue-200 transition-colors ${errors.vehiculeId ? 'border-red-300 focus:border-red-400 focus:ring-red-200' : ''
                       } ${!formData.clientId ? 'opacity-50' : ''}`}>
                       <SelectValue placeholder="Sélectionner un véhicule" />
                     </SelectTrigger>
@@ -398,14 +473,23 @@ export function DevisForm({ onSubmit, onCancel, clients, vehicules, prestations,
                   <Label className="font-medium">
                     Désignation <span className="text-red-500">*</span>
                   </Label>
-                  <Textarea
-                    value={article.designation}
-                    onChange={(e) => handleArticleChange(index, 'designation', e.target.value)}
-                    placeholder="Description détaillée de l'article ou prestation..."
-                    rows={2}
-                    className={`border-slate-200 focus:border-blue-300 focus:ring-blue-200 transition-colors ${errors[`article_${index}_designation`] ? 'border-red-300 focus:border-red-400 focus:ring-red-200' : ''
-                      }`}
-                  />
+                  <div className="relative">
+                    <Textarea
+                      name={`article_${index}_designation`}
+                      value={article.designation}
+                      onChange={(e) => handleArticleChange(index, 'designation', e.target.value)}
+                      placeholder="Description détaillée de l'article ou prestation..."
+                      rows={2}
+                      className={`pr-10 border-slate-200 focus:border-blue-300 focus:ring-blue-200 transition-colors ${errors[`article_${index}_designation`] ? 'border-red-300 focus:border-red-400 focus:ring-red-200' : ''
+                        }`}
+                    />
+                    {!errors[`article_${index}_designation`] && article.designation && (
+                      <CheckCircle className="absolute right-3 top-3 h-4 w-4 text-green-500" />
+                    )}
+                    {errors[`article_${index}_designation`] && (
+                      <AlertCircle className="absolute right-3 top-3 h-4 w-4 text-red-500" />
+                    )}
+                  </div>
                   {errors[`article_${index}_designation`] && (
                     <div className="flex items-center gap-2 text-sm text-red-600">
                       <AlertCircle className="h-3 w-3" />
@@ -422,15 +506,22 @@ export function DevisForm({ onSubmit, onCancel, clients, vehicules, prestations,
                     <div className="relative">
                       <Euro className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                       <Input
+                        name={`article_${index}_prix`}
                         type="number"
                         step="0.01"
                         min="0"
                         value={article.prixUnitaireTTC}
                         onChange={(e) => handleArticleChange(index, 'prixUnitaireTTC', parseFloat(e.target.value) || 0)}
-                        className={`pl-10 border-slate-200 focus:border-blue-300 focus:ring-blue-200 transition-colors ${errors[`article_${index}_prix`] ? 'border-red-300 focus:border-red-400 focus:ring-red-200' : ''
+                        className={`pl-10 pr-10 border-slate-200 focus:border-blue-300 focus:ring-blue-200 transition-colors ${errors[`article_${index}_prix`] ? 'border-red-300 focus:border-red-400 focus:ring-red-200' : ''
                           }`}
                         placeholder="0.00"
                       />
+                      {!errors[`article_${index}_prix`] && article.prixUnitaireTTC > 0 && (
+                        <CheckCircle className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-green-500" />
+                      )}
+                      {errors[`article_${index}_prix`] && (
+                        <AlertCircle className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-red-500" />
+                      )}
                     </div>
                     {errors[`article_${index}_prix`] && (
                       <div className="flex items-center gap-2 text-sm text-red-600">
@@ -444,15 +535,24 @@ export function DevisForm({ onSubmit, onCancel, clients, vehicules, prestations,
                     <Label className="font-medium">
                       Quantité <span className="text-red-500">*</span>
                     </Label>
-                    <Input
-                      type="number"
-                      min="1"
-                      value={article.quantite}
-                      onChange={(e) => handleArticleChange(index, 'quantite', parseInt(e.target.value) || 1)}
-                      className={`border-slate-200 focus:border-blue-300 focus:ring-blue-200 transition-colors ${errors[`article_${index}_quantite`] ? 'border-red-300 focus:border-red-400 focus:ring-red-200' : ''
-                        }`}
-                      placeholder="1"
-                    />
+                    <div className="relative">
+                      <Input
+                        name={`article_${index}_quantite`}
+                        type="number"
+                        min="1"
+                        value={article.quantite}
+                        onChange={(e) => handleArticleChange(index, 'quantite', parseInt(e.target.value) || 1)}
+                        className={`pr-10 border-slate-200 focus:border-blue-300 focus:ring-blue-200 transition-colors ${errors[`article_${index}_quantite`] ? 'border-red-300 focus:border-red-400 focus:ring-red-200' : ''
+                          }`}
+                        placeholder="1"
+                      />
+                      {!errors[`article_${index}_quantite`] && article.quantite > 0 && (
+                        <CheckCircle className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-green-500" />
+                      )}
+                      {errors[`article_${index}_quantite`] && (
+                        <AlertCircle className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-red-500" />
+                      )}
+                    </div>
                     {errors[`article_${index}_quantite`] && (
                       <div className="flex items-center gap-2 text-sm text-red-600">
                         <AlertCircle className="h-3 w-3" />
@@ -499,16 +599,16 @@ export function DevisForm({ onSubmit, onCancel, clients, vehicules, prestations,
           </CardContent>
         </Card>
 
-        {/* Conditions */}
+        {/* Conditions du Devis */}
         <Card className="border border-slate-200 bg-white shadow-sm hover:shadow-lg transition-all duration-300">
           <CardHeader className="pb-4">
             <CardTitle className="flex items-center gap-3">
               <div className="p-2 bg-orange-100 rounded-lg">
-                <CreditCard className="h-5 w-5 text-orange-600" />
+                <Clock className="h-5 w-5 text-orange-600" />
               </div>
               <div>
-                <h4 className="font-semibold text-slate-900">Conditions du Devis</h4>
-                <p className="text-sm text-slate-600 font-normal">Modalités de paiement et validité</p>
+                <h4 className="font-semibold text-slate-900">Validité du Devis</h4>
+                <p className="text-sm text-slate-600 font-normal">Date limite de validité</p>
               </div>
             </CardTitle>
           </CardHeader>
@@ -546,7 +646,23 @@ export function DevisForm({ onSubmit, onCancel, clients, vehicules, prestations,
               )}
               <p className="text-xs text-slate-500">Date limite de validité de ce devis</p>
             </div>
+          </CardContent>
+        </Card>
 
+        {/* Conditions de Paiement */}
+        <Card className="border border-slate-200 bg-white shadow-sm hover:shadow-lg transition-all duration-300">
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center gap-3">
+              <div className="p-2 bg-purple-100 rounded-lg">
+                <CreditCard className="h-5 w-5 text-purple-600" />
+              </div>
+              <div>
+                <h4 className="font-semibold text-slate-900">Conditions de Paiement</h4>
+                <p className="text-sm text-slate-600 font-normal">Modalités financières</p>
+              </div>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="conditionsPaiement" className="font-medium">Conditions de Paiement</Label>
@@ -560,6 +676,7 @@ export function DevisForm({ onSubmit, onCancel, clients, vehicules, prestations,
                     className="pl-10 border-slate-200 focus:border-blue-300 focus:ring-blue-200 transition-colors"
                   />
                 </div>
+                <p className="text-xs text-slate-500">Modalités de règlement</p>
               </div>
 
               <div className="space-y-2">
@@ -577,6 +694,7 @@ export function DevisForm({ onSubmit, onCancel, clients, vehicules, prestations,
                     placeholder="0"
                   />
                 </div>
+                <p className="text-xs text-slate-500">Pourcentage demandé à la commande</p>
               </div>
             </div>
 
@@ -606,7 +724,9 @@ export function DevisForm({ onSubmit, onCancel, clients, vehicules, prestations,
                   <CheckCircle className="h-4 w-4 text-blue-600" />
                 </div>
                 <div>
-                  <p className="font-medium text-slate-900">Prêt à créer le devis ?</p>
+                  <p className="font-medium text-slate-900">
+                    {isEdit ? 'Prêt à modifier le devis ?' : 'Prêt à créer le devis ?'}
+                  </p>
                   <p className="text-sm text-slate-600">Vérifiez que toutes les informations sont correctes</p>
                 </div>
               </div>
@@ -622,18 +742,18 @@ export function DevisForm({ onSubmit, onCancel, clients, vehicules, prestations,
                 </Button>
                 <Button
                   type="submit"
-                  disabled={isLoading}
-                  className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5"
+                  disabled={isLoading || Object.keys(errors).length > 0}
+                  className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isLoading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Création...
+                      {isEdit ? 'Modification...' : 'Création...'}
                     </>
                   ) : (
                     <>
                       <FileEdit className="mr-2 h-4 w-4" />
-                      Créer le Devis
+                      {isEdit ? 'Modifier le Devis' : 'Créer le Devis'}
                     </>
                   )}
                 </Button>

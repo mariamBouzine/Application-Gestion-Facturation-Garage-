@@ -16,11 +16,11 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { 
-  Receipt, 
-  User, 
-  Calendar as CalendarIcon, 
-  Euro, 
+import {
+  Receipt,
+  User,
+  Calendar as CalendarIcon,
+  Euro,
   FileText,
   Users,
   Clock,
@@ -62,14 +62,15 @@ interface FactureFormProps {
   clients: Client[]
   odrs: ODR[]
   isLoading?: boolean
+  initialData?: Partial<FactureFormData>
 }
 
-export function FactureForm({ onSubmit, onCancel, clients, odrs, isLoading = false }: FactureFormProps) {
-  const [formData, setFormData] = useState<FactureFormData>({
-    clientId: '',
-    montantTTC: 0,
-    dateEcheance: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 jours
-    numeroODR: ''
+export function FactureForm({ onSubmit, onCancel, clients, odrs, isLoading = false, initialData }: FactureFormProps) {
+    const [formData, setFormData] = useState<FactureFormData>({
+    clientId: initialData?.clientId || '',
+    montantTTC: initialData?.montantTTC || 0,
+    dateEcheance: initialData?.dateEcheance || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+    numeroODR: initialData?.numeroODR || ''
   })
 
   const [errors, setErrors] = useState<Partial<Record<keyof FactureFormData, string>>>({})
@@ -112,7 +113,7 @@ export function FactureForm({ onSubmit, onCancel, clients, odrs, isLoading = fal
     }
   }
 
-  const filteredODRs = odrs.filter(odr => 
+  const filteredODRs = odrs.filter(odr =>
     !formData.clientId || odr.clientNom === clients.find(c => c.id === formData.clientId)?.prenom + ' ' + clients.find(c => c.id === formData.clientId)?.nom
   )
 
@@ -142,9 +143,8 @@ export function FactureForm({ onSubmit, onCancel, clients, odrs, isLoading = fal
               <div className="relative">
                 <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 z-10" />
                 <Select value={formData.clientId} onValueChange={(value) => handleInputChange('clientId', value)}>
-                  <SelectTrigger className={`pl-10 border-slate-200 focus:border-blue-300 focus:ring-blue-200 transition-colors ${
-                    errors.clientId ? 'border-red-300 focus:border-red-400 focus:ring-red-200' : ''
-                  }`}>
+                  <SelectTrigger className={`pl-10 border-slate-200 focus:border-blue-300 focus:ring-blue-200 transition-colors ${errors.clientId ? 'border-red-300 focus:border-red-400 focus:ring-red-200' : ''
+                    }`}>
                     <SelectValue placeholder="Sélectionner un client" />
                   </SelectTrigger>
                   <SelectContent>
@@ -280,9 +280,8 @@ export function FactureForm({ onSubmit, onCancel, clients, odrs, isLoading = fal
                   value={formData.montantTTC}
                   onChange={(e) => handleInputChange('montantTTC', parseFloat(e.target.value) || 0)}
                   placeholder="1250.00"
-                  className={`pl-10 border-slate-200 focus:border-blue-300 focus:ring-blue-200 transition-colors ${
-                    errors.montantTTC ? 'border-red-300 focus:border-red-400 focus:ring-red-200' : ''
-                  }`}
+                  className={`pl-10 border-slate-200 focus:border-blue-300 focus:ring-blue-200 transition-colors ${errors.montantTTC ? 'border-red-300 focus:border-red-400 focus:ring-red-200' : ''
+                    }`}
                 />
                 {!errors.montantTTC && formData.montantTTC > 0 && (
                   <CheckCircle className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-green-500" />
@@ -318,9 +317,8 @@ export function FactureForm({ onSubmit, onCancel, clients, odrs, isLoading = fal
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className={`w-full justify-start text-left font-normal border-slate-200 focus:border-blue-300 focus:ring-blue-200 transition-colors ${
-                      errors.dateEcheance ? 'border-red-300 focus:border-red-400 focus:ring-red-200' : ''
-                    }`}
+                    className={`w-full justify-start text-left font-normal border-slate-200 focus:border-blue-300 focus:ring-blue-200 transition-colors ${errors.dateEcheance ? 'border-red-300 focus:border-red-400 focus:ring-red-200' : ''
+                      }`}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {formData.dateEcheance ? format(formData.dateEcheance, 'dd/MM/yyyy', { locale: fr }) : 'Sélectionner une date'}
@@ -369,8 +367,8 @@ export function FactureForm({ onSubmit, onCancel, clients, odrs, isLoading = fal
                     Client:
                   </span>
                   <span className="font-medium text-slate-900">
-                    {selectedClient ? 
-                      `${selectedClient.prenom} ${selectedClient.nom}` 
+                    {selectedClient ?
+                      `${selectedClient.prenom} ${selectedClient.nom}`
                       : '-'}
                   </span>
                 </div>
@@ -419,17 +417,17 @@ export function FactureForm({ onSubmit, onCancel, clients, odrs, isLoading = fal
                 </div>
               </div>
               <div className="flex items-center space-x-3">
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={onCancel} 
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={onCancel}
                   disabled={isLoading}
                   className="hover:bg-slate-100 transition-colors"
                 >
                   Annuler
                 </Button>
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   disabled={isLoading}
                   className="bg-green-600 hover:bg-green-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5"
                 >
