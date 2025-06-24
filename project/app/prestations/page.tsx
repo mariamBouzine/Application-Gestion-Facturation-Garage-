@@ -82,6 +82,7 @@ import {
 } from 'lucide-react'
 import { PrestationForm } from '@/components/forms/prestation-form'
 import { PrestationDeleteConfirmationDialog } from '@/components/dialogs/prestation-delete-confirmation-dialog'
+import { ForfaitDeleteConfirmationDialog } from '@/components/dialogs/forfait-delete-confirmation-dialog'
 
 interface ForfaitFormData {
   nom: string
@@ -261,6 +262,10 @@ export default function PrestationsPage() {
   const [editingPrestation, setEditingPrestation] = useState<string | null>(null)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [prestationToDelete, setPrestationToDelete] = useState<any>(null)
+  const [isEditForfaitDialogOpen, setIsEditForfaitDialogOpen] = useState(false)
+  const [editingForfait, setEditingForfait] = useState<any>(null)
+  const [isForfaitDeleteDialogOpen, setIsForfaitDeleteDialogOpen] = useState(false)
+  const [forfaitToDelete, setForfaitToDelete] = useState<any>(null)
 
   // Add this helper function
   const getModelesForMarque = (marque: string): string[] => {
@@ -398,6 +403,71 @@ export default function PrestationsPage() {
       setEditingPrestation(null)
     } catch (error) {
       console.error('Error updating prestation:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Handler functions for forfait actions
+  const handleEditForfait = (forfait: any) => {
+    setEditingForfait(forfait)
+    setForfaitFormData({
+      nom: forfait.nom,
+      description: forfait.description,
+      marqueVehicule: forfait.marqueVehicule,
+      modeleVehicule: forfait.modeleVehicule,
+      prestationId: forfait.prestationId,
+      prixDeBase: forfait.prixDeBase,
+      unite: forfait.unite,
+      uniteAutre: forfait.uniteAutre || '',
+      tva: forfait.tva
+    })
+    setIsEditForfaitDialogOpen(true)
+  }
+
+  const handleUpdateForfait = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (validateForfaitForm()) {
+      setIsLoading(true)
+      try {
+        await new Promise(resolve => setTimeout(resolve, 1000))
+        console.log('Updating forfait:', editingForfait.id, forfaitFormData)
+        setIsEditForfaitDialogOpen(false)
+        setEditingForfait(null)
+        // Reset form
+        setForfaitFormData({
+          nom: '',
+          description: '',
+          marqueVehicule: '',
+          modeleVehicule: '',
+          prestationId: '',
+          prixDeBase: 0,
+          unite: 'prestation',
+          uniteAutre: '',
+          tva: 20
+        })
+      } catch (error) {
+        console.error('Error updating forfait:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+  }
+
+  const handleDeleteForfait = (forfait: any) => {
+    setForfaitToDelete(forfait)
+    setIsForfaitDeleteDialogOpen(true)
+  }
+
+  const handleConfirmForfaitDelete = async (forfaitId: string) => {
+    setIsLoading(true)
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      console.log('Deleting forfait:', forfaitId)
+      setIsForfaitDeleteDialogOpen(false)
+      setForfaitToDelete(null)
+    } catch (error) {
+      console.error('Error deleting forfait:', error)
     } finally {
       setIsLoading(false)
     }
@@ -654,10 +724,6 @@ export default function PrestationsPage() {
                               <Edit className="mr-2 h-4 w-4" />
                               Modifier
                             </DropdownMenuItem>
-                            <DropdownMenuItem className="hover:bg-purple-50 hover:text-purple-600">
-                              <Copy className="mr-2 h-4 w-4" />
-                              Dupliquer
-                            </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                               className="text-red-600 hover:bg-red-50 hover:text-red-700"
@@ -774,10 +840,6 @@ export default function PrestationsPage() {
                           <DropdownMenuItem className="hover:bg-blue-50 hover:text-blue-600">
                             <Edit className="mr-2 h-4 w-4" />
                             Modifier
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="hover:bg-purple-50 hover:text-purple-600">
-                            <Copy className="mr-2 h-4 w-4" />
-                            Dupliquer
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem className="text-red-600 hover:bg-red-50 hover:text-red-700">
@@ -898,16 +960,18 @@ export default function PrestationsPage() {
                                   <Eye className="mr-2 h-4 w-4" />
                                   Voir les détails
                                 </DropdownMenuItem>
-                                <DropdownMenuItem className="hover:bg-blue-50 hover:text-blue-600">
+                                <DropdownMenuItem
+                                  className="hover:bg-blue-50 hover:text-blue-600"
+                                  onClick={() => handleEditForfait(forfait)}
+                                >
                                   <Edit className="mr-2 h-4 w-4" />
                                   Modifier
                                 </DropdownMenuItem>
-                                <DropdownMenuItem className="hover:bg-purple-50 hover:text-purple-600">
-                                  <Copy className="mr-2 h-4 w-4" />
-                                  Dupliquer
-                                </DropdownMenuItem>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem className="text-red-600 hover:bg-red-50 hover:text-red-700">
+                                <DropdownMenuItem
+                                  className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                                  onClick={() => handleDeleteForfait(forfait)}
+                                >
                                   <Trash2 className="mr-2 h-4 w-4" />
                                   Supprimer
                                 </DropdownMenuItem>
@@ -1197,10 +1261,6 @@ export default function PrestationsPage() {
                         <Edit className="h-3 w-3 mr-1" />
                         Modifier
                       </Button>
-                      <Button size="sm" variant="outline" className="hover:bg-purple-50 hover:text-purple-600 hover:border-purple-200 transition-colors">
-                        <Copy className="h-3 w-3 mr-1" />
-                        Dupliquer
-                      </Button>
                       <Button size="sm" variant="outline" className="hover:bg-green-50 hover:text-green-600 hover:border-green-200 transition-colors">
                         <Download className="h-3 w-3 mr-1" />
                         Exporter
@@ -1351,6 +1411,7 @@ export default function PrestationsPage() {
               />
             </DialogContent>
           </Dialog>
+
           {/* Add Forfait Dialog */}
           <Dialog open={isAddForfaitDialogOpen} onOpenChange={setIsAddForfaitDialogOpen}>
             <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
@@ -1839,6 +1900,521 @@ export default function PrestationsPage() {
               </form>
             </DialogContent>
           </Dialog>
+
+          {/* Edit Forfait Dialog */}
+          <Dialog open={isEditForfaitDialogOpen} onOpenChange={setIsEditForfaitDialogOpen}>
+            <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Modifier le forfait</DialogTitle>
+                <DialogDescription>
+                  Modifiez les informations du forfait
+                </DialogDescription>
+              </DialogHeader>
+
+              <form onSubmit={handleUpdateForfait} className="space-y-6">
+                <Card className="border border-slate-200 bg-white shadow-sm">
+                  <CardContent className="p-6 space-y-6">
+                    {/* Nom du forfait */}
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-forfait-nom" className="font-medium">
+                        Nom du forfait <span className="text-red-500">*</span>
+                      </Label>
+                      <div className="relative">
+                        <Package className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                        <Input
+                          id="edit-forfait-nom"
+                          value={forfaitFormData.nom}
+                          onChange={(e) => handleForfaitInputChange('nom', e.target.value)}
+                          placeholder="RÉVISION GÉNÉRALE Toyota"
+                          className={`pl-10 border-slate-200 focus:border-blue-300 focus:ring-blue-200 transition-colors ${forfaitErrors.nom ? 'border-red-300 focus:border-red-400 focus:ring-red-200' : ''
+                            }`}
+                        />
+                        {forfaitErrors.nom && (
+                          <AlertTriangle className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-red-500" />
+                        )}
+                      </div>
+                      {forfaitErrors.nom && (
+                        <div className="flex items-center gap-2 text-sm text-red-600">
+                          <AlertTriangle className="h-3 w-3" />
+                          {forfaitErrors.nom}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Description */}
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-forfait-description" className="font-medium">
+                        Description <span className="text-red-500">*</span>
+                      </Label>
+                      <div className="relative">
+                        <FileText className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                        <textarea
+                          id="edit-forfait-description"
+                          value={forfaitFormData.description}
+                          onChange={(e) => handleForfaitInputChange('description', e.target.value)}
+                          placeholder="RÉVISION GÉNÉRALE"
+                          rows={3}
+                          className={`w-full pl-10 pr-10 py-2 border rounded-md resize-none focus:outline-none focus:ring-2 border-slate-200 focus:border-blue-300 focus:ring-blue-200 transition-colors ${forfaitErrors.description ? 'border-red-300 focus:border-red-400 focus:ring-red-200' : ''
+                            }`}
+                        />
+                        {forfaitErrors.description && (
+                          <AlertTriangle className="absolute right-3 top-3 h-4 w-4 text-red-500" />
+                        )}
+                      </div>
+                      {forfaitErrors.description && (
+                        <div className="flex items-center gap-2 text-sm text-red-600">
+                          <AlertTriangle className="h-3 w-3" />
+                          {forfaitErrors.description}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Prestation (disabled) */}
+                    <div className="space-y-2">
+                      <Label className="font-medium">
+                        Prestation <span className="text-red-500">*</span>
+                      </Label>
+                      <div className="relative">
+                        <Package className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                        <Input
+                          value={(() => {
+                            const prestation = mockPrestations.find(p => p.id === forfaitFormData.prestationId);
+                            return prestation ? prestation.nom : 'Aucune prestation sélectionnée';
+                          })()}
+                          disabled
+                          className="pl-10 bg-slate-50 text-slate-600 border-slate-200"
+                        />
+                      </div>
+                      {forfaitFormData.prestationId && (
+                        <div className="mt-2 p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                          {(() => {
+                            const selectedPrestation = mockPrestations.find(p => p.id === forfaitFormData.prestationId);
+                            return selectedPrestation ? (
+                              <div className="flex items-start gap-3">
+                                <div className={`p-2 rounded-lg ${selectedPrestation.typeService === 'CARROSSERIE' ? 'bg-orange-100' : 'bg-blue-100'
+                                  }`}>
+                                  {selectedPrestation.typeService === 'CARROSSERIE' ? (
+                                    <PaintBucket className="h-4 w-4 text-orange-600" />
+                                  ) : (
+                                    <Wrench className="h-4 w-4 text-blue-600" />
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="font-medium text-slate-900">{selectedPrestation.nom}</div>
+                                  <div className="text-sm text-slate-600 mt-1">{selectedPrestation.description}</div>
+                                </div>
+                              </div>
+                            ) : null;
+                          })()}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Véhicule avec recherche */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Marque avec recherche */}
+                      <div className="space-y-2">
+                        <Label className="font-medium">
+                          Marque <span className="text-red-500">*</span>
+                        </Label>
+                        <Popover open={marqueSearchOpen} onOpenChange={setMarqueSearchOpen}>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              aria-expanded={marqueSearchOpen}
+                              className={`w-full justify-between h-11 border-slate-200 focus:border-blue-300 focus:ring-blue-200 transition-colors ${forfaitErrors.marqueVehicule ? 'border-red-300 focus:border-red-400 focus:ring-red-200' : ''
+                                } ${!forfaitFormData.marqueVehicule ? 'text-slate-500' : ''}`}
+                            >
+                              <div className="flex items-center gap-2">
+                                <Car className="h-4 w-4 text-slate-400" />
+                                <span>{forfaitFormData.marqueVehicule || "Sélectionner une marque..."}</span>
+                              </div>
+                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-full p-0" align="start">
+                            <Command>
+                              <CommandInput
+                                placeholder="Rechercher ou taper une nouvelle marque..."
+                                value={marqueSearchValue}
+                                onValueChange={setMarqueSearchValue}
+                              />
+                              <CommandEmpty>
+                                <div className="p-4 text-center">
+                                  <p className="text-sm text-slate-600 mb-3">Aucune marque trouvée</p>
+                                  {marqueSearchValue && (
+                                    <Button
+                                      size="sm"
+                                      onClick={() => {
+                                        // Add new marque to the list
+                                        const newMarque = marqueSearchValue.trim()
+                                        if (newMarque && !mockMarques.includes(newMarque)) {
+                                          setMockMarques(prev => [...prev, newMarque])
+                                        }
+                                        handleForfaitInputChange('marqueVehicule', newMarque)
+                                        setMarqueSearchOpen(false)
+                                        setMarqueSearchValue('')
+                                      }}
+                                      className="bg-blue-600 hover:bg-blue-700"
+                                    >
+                                      <Plus className="h-3 w-3 mr-1" />
+                                      Ajouter "{marqueSearchValue}"
+                                    </Button>
+                                  )}
+                                </div>
+                              </CommandEmpty>
+                              <CommandGroup>
+                                {mockMarques
+                                  .filter(marque =>
+                                    marque.toLowerCase().includes(marqueSearchValue.toLowerCase())
+                                  )
+                                  .map((marque) => (
+                                    <CommandItem
+                                      key={marque}
+                                      value={marque}
+                                      onSelect={(currentValue) => {
+                                        handleForfaitInputChange('marqueVehicule', currentValue === forfaitFormData.marqueVehicule ? '' : currentValue)
+                                        setMarqueSearchOpen(false)
+                                        setMarqueSearchValue('')
+                                      }}
+                                      className="flex items-center gap-3 p-3 hover:bg-slate-50"
+                                    >
+                                      <Car className="h-4 w-4 text-slate-400" />
+                                      <span className="font-medium text-slate-900">{marque}</span>
+                                      <Check
+                                        className={`ml-auto h-4 w-4 ${forfaitFormData.marqueVehicule === marque ? "opacity-100" : "opacity-0"
+                                          }`}
+                                      />
+                                    </CommandItem>
+                                  ))}
+                              </CommandGroup>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
+                        {forfaitErrors.marqueVehicule && (
+                          <div className="flex items-center gap-2 text-sm text-red-600">
+                            <AlertTriangle className="h-3 w-3" />
+                            {forfaitErrors.marqueVehicule}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Modèle avec recherche */}
+                      <div className="space-y-2">
+                        <Label className="font-medium">
+                          Modèle <span className="text-red-500">*</span>
+                        </Label>
+                        <Popover open={modeleSearchOpen} onOpenChange={setModeleSearchOpen}>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              aria-expanded={modeleSearchOpen}
+                              disabled={!forfaitFormData.marqueVehicule}
+                              className={`w-full justify-between h-11 border-slate-200 focus:border-blue-300 focus:ring-blue-200 transition-colors ${forfaitErrors.modeleVehicule ? 'border-red-300 focus:border-red-400 focus:ring-red-200' : ''
+                                } ${!forfaitFormData.modeleVehicule ? 'text-slate-500' : ''} ${!forfaitFormData.marqueVehicule ? 'bg-slate-50 text-slate-400' : ''
+                                }`}
+                            >
+                              <div className="flex items-center gap-2">
+                                <Car className="h-4 w-4 text-slate-400" />
+                                <span>{forfaitFormData.modeleVehicule || "Sélectionner un modèle..."}</span>
+                              </div>
+                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-full p-0" align="start">
+                            <Command>
+                              <CommandInput
+                                placeholder="Rechercher ou taper un nouveau modèle..."
+                                value={modeleSearchValue}
+                                onValueChange={setModeleSearchValue}
+                              />
+                              <CommandEmpty>
+                                <div className="p-4 text-center">
+                                  <p className="text-sm text-slate-600 mb-3">Aucun modèle trouvé</p>
+                                  {modeleSearchValue && forfaitFormData.marqueVehicule && (
+                                    <Button
+                                      size="sm"
+                                      onClick={() => {
+                                        // Add new modele to the list
+                                        const newModele = modeleSearchValue.trim()
+                                        if (newModele && !getModelesForMarque(forfaitFormData.marqueVehicule).includes(newModele)) {
+                                          setMockModeles(prev => ({
+                                            ...prev,
+                                            [forfaitFormData.marqueVehicule]: [
+                                              ...(prev[forfaitFormData.marqueVehicule] || []),
+                                              newModele
+                                            ]
+                                          }))
+                                        }
+                                        handleForfaitInputChange('modeleVehicule', newModele)
+                                        setModeleSearchOpen(false)
+                                        setModeleSearchValue('')
+                                      }}
+                                      className="bg-blue-600 hover:bg-blue-700"
+                                    >
+                                      <Plus className="h-3 w-3 mr-1" />
+                                      Ajouter "{modeleSearchValue}"
+                                    </Button>
+                                  )}
+                                </div>
+                              </CommandEmpty>
+                              <CommandGroup>
+                                {getModelesForMarque(forfaitFormData.marqueVehicule)
+                                  .filter(modele =>
+                                    modele.toLowerCase().includes(modeleSearchValue.toLowerCase())
+                                  )
+                                  .map((modele) => (
+                                    <CommandItem
+                                      key={modele}
+                                      value={modele}
+                                      onSelect={(currentValue) => {
+                                        handleForfaitInputChange('modeleVehicule', currentValue === forfaitFormData.modeleVehicule ? '' : currentValue)
+                                        setModeleSearchOpen(false)
+                                        setModeleSearchValue('')
+                                      }}
+                                      className="flex items-center gap-3 p-3 hover:bg-slate-50"
+                                    >
+                                      <Car className="h-4 w-4 text-slate-400" />
+                                      <span className="font-medium text-slate-900">{modele}</span>
+                                      <Check
+                                        className={`ml-auto h-4 w-4 ${forfaitFormData.modeleVehicule === modele ? "opacity-100" : "opacity-0"
+                                          }`}
+                                      />
+                                    </CommandItem>
+                                  ))}
+                              </CommandGroup>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
+                        {forfaitErrors.modeleVehicule && (
+                          <div className="flex items-center gap-2 text-sm text-red-600">
+                            <AlertTriangle className="h-3 w-3" />
+                            {forfaitErrors.modeleVehicule}
+                          </div>
+                        )}
+                        {!forfaitFormData.marqueVehicule && (
+                          <p className="text-xs text-slate-500">Sélectionnez d'abord une marque</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Unité - Radio Buttons */}
+                    <div className="space-y-3">
+                      <Label className="font-medium">
+                        Unité <span className="text-red-500">*</span>
+                      </Label>
+                      <RadioGroup
+                        value={forfaitFormData.unite}
+                        onValueChange={(value) => handleForfaitInputChange('unite', value)}
+                        className="grid grid-cols-2 md:grid-cols-4 gap-4"
+                      >
+                        <div className="flex items-center space-x-2 p-3 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+                          <RadioGroupItem value="prestation" id="edit-unite-prestation" />
+                          <Label htmlFor="edit-unite-prestation" className="cursor-pointer flex-1">
+                            <div className="flex items-center gap-2">
+                              <Package className="h-4 w-4 text-slate-500" />
+                              <span className="font-medium">Prestation</span>
+                            </div>
+                          </Label>
+                        </div>
+
+                        <div className="flex items-center space-x-2 p-3 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+                          <RadioGroupItem value="heure" id="edit-unite-heure" />
+                          <Label htmlFor="edit-unite-heure" className="cursor-pointer flex-1">
+                            <div className="flex items-center gap-2">
+                              <Clock className="h-4 w-4 text-slate-500" />
+                              <span className="font-medium">Heure</span>
+                            </div>
+                          </Label>
+                        </div>
+
+                        <div className="flex items-center space-x-2 p-3 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+                          <RadioGroupItem value="jour" id="edit-unite-jour" />
+                          <Label htmlFor="edit-unite-jour" className="cursor-pointer flex-1">
+                            <div className="flex items-center gap-2">
+                              <Calendar className="h-4 w-4 text-slate-500" />
+                              <span className="font-medium">Jour</span>
+                            </div>
+                          </Label>
+                        </div>
+
+                        <div className="flex items-center space-x-2 p-3 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+                          <RadioGroupItem value="autre" id="edit-unite-autre" />
+                          <Label htmlFor="edit-unite-autre" className="cursor-pointer flex-1">
+                            <div className="flex items-center gap-2">
+                              <Settings className="h-4 w-4 text-slate-500" />
+                              <span className="font-medium">Autre</span>
+                            </div>
+                          </Label>
+                        </div>
+                      </RadioGroup>
+
+                      {forfaitFormData.unite === 'autre' && (
+                        <div className="mt-3">
+                          <Label htmlFor="edit-unite-autre-input" className="text-sm font-medium text-slate-700 mb-2 block">
+                            Précisez l'unité
+                          </Label>
+                          <Input
+                            id="edit-unite-autre-input"
+                            value={forfaitFormData.uniteAutre || ''}
+                            onChange={(e) => handleForfaitInputChange('uniteAutre', e.target.value)}
+                            placeholder="Ex: Kilomètre, Pièce, Forfait..."
+                            className={`border-slate-200 focus:border-blue-300 focus:ring-blue-200 transition-colors ${forfaitErrors.uniteAutre ? 'border-red-300 focus:border-red-400 focus:ring-red-200' : ''
+                              }`}
+                          />
+                          {forfaitErrors.uniteAutre && (
+                            <div className="flex items-center gap-2 text-sm text-red-600 mt-1">
+                              <AlertTriangle className="h-3 w-3" />
+                              {forfaitErrors.uniteAutre}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Prix de base */}
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-forfait-prix" className="font-medium">
+                        Prix de base (€ HT) <span className="text-red-500">*</span>
+                      </Label>
+                      <div className="relative">
+                        <Euro className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                        <Input
+                          id="edit-forfait-prix"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={forfaitFormData.prixDeBase}
+                          onChange={(e) => handleForfaitInputChange('prixDeBase', parseFloat(e.target.value) || 0)}
+                          placeholder="150.00"
+                          className={`pl-10 border-slate-200 focus:border-blue-300 focus:ring-blue-200 transition-colors ${forfaitErrors.prixDeBase ? 'border-red-300 focus:border-red-400 focus:ring-red-200' : ''
+                            }`}
+                        />
+                        {forfaitErrors.prixDeBase && (
+                          <AlertTriangle className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-red-500" />
+                        )}
+                      </div>
+                      {forfaitErrors.prixDeBase && (
+                        <div className="flex items-center gap-2 text-sm text-red-600">
+                          <AlertTriangle className="h-3 w-3" />
+                          {forfaitErrors.prixDeBase}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* TVA */}
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-forfait-tva" className="font-medium">
+                        TVA (%)
+                      </Label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">%</span>
+                        <Input
+                          id="edit-forfait-tva"
+                          type="number"
+                          step="0.1"
+                          min="0"
+                          max="100"
+                          value={forfaitFormData.tva}
+                          onChange={(e) => handleForfaitInputChange('tva', parseFloat(e.target.value) || 0)}
+                          className="pl-8 border-slate-200 focus:border-blue-300 focus:ring-blue-200 transition-colors"
+                        />
+                      </div>
+                      <p className="text-xs text-slate-500">TVA standard: 20%</p>
+                    </div>
+
+                    {/* Récapitulatif prix */}
+                    {forfaitFormData.prixDeBase > 0 && (
+                      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <h4 className="font-medium text-blue-900 mb-2">Récapitulatif</h4>
+                        <div className="space-y-1 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-blue-700">Prix HT:</span>
+                            <span className="font-medium text-blue-900">
+                              {forfaitFormData.prixDeBase.toFixed(2)} €
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-blue-700">TVA ({forfaitFormData.tva}%):</span>
+                            <span className="font-medium text-blue-900">
+                              {(forfaitFormData.prixDeBase * forfaitFormData.tva / 100).toFixed(2)} €
+                            </span>
+                          </div>
+                          <div className="flex justify-between border-t border-blue-300 pt-1">
+                            <span className="font-medium text-blue-900">Prix TTC:</span>
+                            <span className="font-bold text-blue-900">
+                              {calculatePrixTTC().toFixed(2)} €
+                            </span>
+                          </div>
+                          <div className="text-xs text-blue-600 mt-2">
+                            Par {forfaitFormData.unite === 'autre' ? forfaitFormData.uniteAutre : forfaitFormData.unite}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Actions */}
+                    <div className="flex items-center justify-end pt-4 border-t border-slate-200">
+                      <div className="flex items-center space-x-3">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            setIsEditForfaitDialogOpen(false)
+                            setEditingForfait(null)
+                            // Reset form
+                            setForfaitFormData({
+                              nom: '',
+                              description: '',
+                              marqueVehicule: '',
+                              modeleVehicule: '',
+                              prestationId: '',
+                              prixDeBase: 0,
+                              unite: 'prestation',
+                              uniteAutre: '',
+                              tva: 20
+                            })
+                            setForfaitErrors({})
+                          }}
+                          disabled={isLoading}
+                          className="hover:bg-slate-100 transition-colors"
+                        >
+                          Annuler
+                        </Button>
+                        <Button
+                          type="submit"
+                          disabled={isLoading}
+                          className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5"
+                        >
+                          {isLoading ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Mise à jour...
+                            </>
+                          ) : (
+                            <>
+                              Mettre à jour le Forfait
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </form>
+            </DialogContent>
+          </Dialog>
+
+          {/* Delete Forfait Dialog */}
+          <ForfaitDeleteConfirmationDialog
+            open={isForfaitDeleteDialogOpen}
+            onOpenChange={setIsForfaitDeleteDialogOpen}
+            forfait={forfaitToDelete}
+            onConfirm={handleConfirmForfaitDelete}
+            isLoading={isLoading}
+          />
         </div>
       </div>
     </div>
