@@ -8,6 +8,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command'
 import {
   Table,
   TableBody,
@@ -69,9 +74,26 @@ import {
   BarChart3,
   Filter,
   CheckCircle,
-  AlertTriangle
+  AlertTriangle,
+  FileText,
+  Check,
+  ChevronsUpDown,
+  Clock
 } from 'lucide-react'
 import { PrestationForm } from '@/components/forms/prestation-form'
+import { PrestationDeleteConfirmationDialog } from '@/components/dialogs/prestation-delete-confirmation-dialog'
+
+interface ForfaitFormData {
+  nom: string
+  description: string
+  marqueVehicule: string
+  modeleVehicule: string
+  prestationId: string
+  prixDeBase: number
+  unite: 'prestation' | 'heure' | 'jour' | 'autre'
+  uniteAutre?: string
+  tva: number
+}
 
 // Mock data for prestations
 const mockPrestations = [
@@ -150,7 +172,9 @@ const mockForfaits = [
     nom: 'Forfait carrosserie Peugeot 308',
     marqueVehicule: 'Peugeot',
     modeleVehicule: '308',
-    prix: 850.00,
+    prixDeBase: 750.00,
+    tva: 20,
+    unite: 'prestation',
     description: 'Forfait complet carrosserie pour Peugeot 308',
     prestationId: '1',
     createdAt: new Date('2024-01-19T13:20:00Z'),
@@ -161,7 +185,9 @@ const mockForfaits = [
     nom: 'Forfait révision Renault Clio',
     marqueVehicule: 'Renault',
     modeleVehicule: 'Clio',
-    prix: 180.00,
+    prixDeBase: 150.00,
+    tva: 20,
+    unite: 'prestation',
     description: 'Forfait révision complète pour Renault Clio',
     prestationId: '2',
     createdAt: new Date('2024-01-20T08:30:00Z'),
@@ -172,7 +198,9 @@ const mockForfaits = [
     nom: 'Forfait entretien BMW X3',
     marqueVehicule: 'BMW',
     modeleVehicule: 'X3',
-    prix: 280.00,
+    prixDeBase: 230.00,
+    tva: 20,
+    unite: 'prestation',
     description: 'Forfait entretien premium pour BMW X3',
     prestationId: '2',
     createdAt: new Date('2024-01-21T10:15:00Z'),
@@ -196,6 +224,48 @@ export default function PrestationsPage() {
   const [filterPopularite, setFilterPopularite] = useState<'ALL' | 'ELEVEE' | 'MOYENNE' | 'FAIBLE'>('ALL')
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage] = useState(10)
+  const [prestationSearchOpen, setPrestationSearchOpen] = useState(false)
+  const [prestationSearchValue, setPrestationSearchValue] = useState('')
+  const [forfaitFormData, setForfaitFormData] = useState<ForfaitFormData>({
+    nom: '',
+    description: '',
+    marqueVehicule: '',
+    modeleVehicule: '',
+    prestationId: selectedPrestation || '',
+    prixDeBase: 0,
+    unite: 'prestation',
+    uniteAutre: '',
+    tva: 20
+  })
+  const [forfaitErrors, setForfaitErrors] = useState<Partial<Record<keyof ForfaitFormData, string>>>({})
+  const [marqueSearchOpen, setMarqueSearchOpen] = useState(false)
+  const [marqueSearchValue, setMarqueSearchValue] = useState('')
+  const [modeleSearchOpen, setModeleSearchOpen] = useState(false)
+  const [modeleSearchValue, setModeleSearchValue] = useState('')
+  const [mockMarques, setMockMarques] = useState([
+    'Toyota', 'Renault', 'Peugeot', 'Citroën', 'BMW', 'Mercedes', 'Audi', 'Volkswagen', 'Ford', 'Opel'
+  ])
+  const [mockModeles, setMockModeles] = useState<Record<string, string[]>>({
+    'Toyota': ['Corolla', 'Yaris', 'Auris', 'RAV4', 'Prius', 'Camry'],
+    'Renault': ['Clio', 'Megane', 'Captur', 'Kadjar', 'Twingo', 'Scenic'],
+    'Peugeot': ['208', '308', '508', '2008', '3008', '5008'],
+    'Citroën': ['C3', 'C4', 'C5', 'C3 Aircross', 'Berlingo', 'Spacetourer'],
+    'BMW': ['Serie 1', 'Serie 3', 'Serie 5', 'X1', 'X3', 'X5'],
+    'Mercedes': ['Classe A', 'Classe C', 'Classe E', 'GLA', 'GLC', 'GLE'],
+    'Audi': ['A3', 'A4', 'A6', 'Q3', 'Q5', 'Q7'],
+    'Volkswagen': ['Golf', 'Polo', 'Passat', 'Tiguan', 'Touran', 'Arteon'],
+    'Ford': ['Fiesta', 'Focus', 'Mondeo', 'Kuga', 'EcoSport', 'Edge'],
+    'Opel': ['Corsa', 'Astra', 'Insignia', 'Crossland', 'Grandland', 'Mokka']
+  })
+  const [isEditPrestationDialogOpen, setIsEditPrestationDialogOpen] = useState(false)
+  const [editingPrestation, setEditingPrestation] = useState<string | null>(null)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [prestationToDelete, setPrestationToDelete] = useState<any>(null)
+
+  // Add this helper function
+  const getModelesForMarque = (marque: string): string[] => {
+    return mockModeles[marque] || []
+  }
 
   // Load initial data
   useEffect(() => {
@@ -214,6 +284,32 @@ export default function PrestationsPage() {
       setActiveTab(tab)
     }
   }, [searchParams])
+
+  useEffect(() => {
+    if (selectedPrestation) {
+      setForfaitFormData(prev => ({
+        ...prev,
+        prestationId: selectedPrestation,
+        marqueVehicule: '', // Clear marque when prestation changes
+        modeleVehicule: '' // Clear modele when prestation changes
+      }))
+      const prestation = mockPrestations.find(p => p.id === selectedPrestation)
+      if (prestation) {
+        setForfaitFormData(prev => ({
+          ...prev,
+          nom: `${prestation.nom}`,
+          description: prestation.description
+        }))
+      }
+    }
+  }, [selectedPrestation])
+
+  // Add new useEffect to clear modele when marque changes
+  useEffect(() => {
+    if (forfaitFormData.marqueVehicule) {
+      setForfaitFormData(prev => ({ ...prev, modeleVehicule: '' }))
+    }
+  }, [forfaitFormData.marqueVehicule])
 
   const prestationsCarrosserie = mockPrestations.filter(p => p.typeService === 'CARROSSERIE')
   const prestationsMecanique = mockPrestations.filter(p => p.typeService === 'MECANIQUE')
@@ -288,6 +384,25 @@ export default function PrestationsPage() {
     }
   }
 
+  const handleEditPrestation = (prestationId: string) => {
+    setEditingPrestation(prestationId)
+    setIsEditPrestationDialogOpen(true)
+  }
+
+  const handleUpdatePrestation = async (data: any) => {
+    setIsLoading(true)
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      console.log('Updating prestation:', editingPrestation, data)
+      setIsEditPrestationDialogOpen(false)
+      setEditingPrestation(null)
+    } catch (error) {
+      console.error('Error updating prestation:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   const handleSelectPrestation = (prestationId: string, checked: boolean) => {
     if (checked) {
       setSelectedPrestations(prev => [...prev, prestationId])
@@ -316,6 +431,81 @@ export default function PrestationsPage() {
       return `${hours}h${mins > 0 ? `${mins}m` : ''}`
     }
     return `${mins}m`
+  }
+
+  const validateForfaitForm = (): boolean => {
+    const newErrors: Partial<Record<keyof ForfaitFormData, string>> = {}
+
+    if (!forfaitFormData.nom.trim()) newErrors.nom = 'Le nom est requis'
+    if (!forfaitFormData.description.trim()) newErrors.description = 'La description est requise'
+    if (!forfaitFormData.marqueVehicule.trim()) newErrors.marqueVehicule = 'La marque est requise'
+    if (!forfaitFormData.modeleVehicule.trim()) newErrors.modeleVehicule = 'Le modèle est requis'
+    if (!forfaitFormData.prestationId) newErrors.prestationId = 'La prestation est requise'
+    if (forfaitFormData.prixDeBase <= 0) newErrors.prixDeBase = 'Le prix doit être supérieur à 0'
+    if (forfaitFormData.unite === 'autre' && !forfaitFormData.uniteAutre?.trim()) {
+      newErrors.uniteAutre = 'Précisez l\'unité'
+    }
+
+    setForfaitErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
+  const handleForfaitInputChange = (field: keyof ForfaitFormData, value: string | number) => {
+    setForfaitFormData(prev => ({ ...prev, [field]: value }))
+    if (forfaitErrors[field]) {
+      setForfaitErrors(prev => ({ ...prev, [field]: undefined }))
+    }
+  }
+
+  const handleCreateForfait = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (validateForfaitForm()) {
+      setIsLoading(true)
+      try {
+        await new Promise(resolve => setTimeout(resolve, 1000))
+        console.log('Creating forfait:', forfaitFormData)
+        setIsAddForfaitDialogOpen(false)
+        // Reset form
+        setForfaitFormData({
+          nom: '',
+          description: '',
+          marqueVehicule: '',
+          modeleVehicule: '',
+          prestationId: '',
+          prixDeBase: 0,
+          unite: 'prestation',
+          uniteAutre: '',
+          tva: 20
+        })
+      } catch (error) {
+        console.error('Error creating forfait:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+  }
+
+  const handleDeletePrestation = (prestation: any) => {
+    setPrestationToDelete(prestation)
+    setIsDeleteDialogOpen(true)
+  }
+
+  const handleConfirmDelete = async (prestationId: string) => {
+    setIsLoading(true)
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      console.log('Deleting prestation:', prestationId)
+      setIsDeleteDialogOpen(false)
+      setPrestationToDelete(null)
+      // Here you would typically update your data or refetch
+    } catch (error) {
+      console.error('Error deleting prestation:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+  const calculatePrixTTC = () => {
+    return forfaitFormData.prixDeBase * (1 + forfaitFormData.tva / 100)
   }
 
   const clearFilters = () => {
@@ -354,129 +544,113 @@ export default function PrestationsPage() {
 
     return (
       <div className="space-y-6">
-        {/* Table */}
-        <div className="hidden md:block">
-          <div className="rounded-lg border border-slate-200 overflow-hidden">
-            <Table>
-              <TableHeader className="bg-slate-50">
-                <TableRow className="hover:bg-slate-50">
-                  <TableHead className="w-12">
-                    <Checkbox
-                      checked={isAllSelected}
-                      ref={(el) => {
-                        if (el) el.indeterminate = isSomeSelected && !isAllSelected
-                      }}
-                      onCheckedChange={(checked) => handleSelectAll(prestations, checked as boolean)}
-                    />
-                  </TableHead>
-                  <TableHead className="font-semibold">Prestation</TableHead>
-                  <TableHead className="font-semibold">Prix de Base</TableHead>
-                  <TableHead className="font-semibold">Durée</TableHead>
-                  <TableHead className="font-semibold">Popularité</TableHead>
-                  <TableHead className="font-semibold">Forfaits</TableHead>
-                  <TableHead className="font-semibold">Statut</TableHead>
-                  <TableHead className="text-right font-semibold">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {paginatedPrestations.map((prestation, index) => {
-                  const forfaits = getForfaitsForPrestation(prestation.id)
-                  return (
-                    <TableRow
-                      key={prestation.id}
-                      className={`hover:bg-blue-50/50 transition-colors duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'
-                        } ${selectedPrestations.includes(prestation.id) ? 'bg-blue-50 border-l-4 border-l-blue-400' : ''}`}
-                    >
-                      <TableCell>
-                        <Checkbox
-                          checked={selectedPrestations.includes(prestation.id)}
-                          onCheckedChange={(checked) => handleSelectPrestation(prestation.id, checked as boolean)}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-start gap-3">
-                          <div className={`p-2 rounded-lg ${typeService === 'CARROSSERIE' ? 'bg-orange-100' : 'bg-blue-100'}`}>
-                            {typeService === 'CARROSSERIE' ?
-                              <PaintBucket className={`h-4 w-4 ${typeService === 'CARROSSERIE' ? 'text-orange-600' : 'text-blue-600'}`} /> :
-                              <Wrench className="h-4 w-4 text-blue-600" />
-                            }
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="font-medium text-slate-900">{prestation.nom}</div>
-                            <div className="text-sm text-slate-600 mt-1 line-clamp-2">
-                              {prestation.description}
-                            </div>
-                          </div>
+        {/* Desktop Table Layout */}
+        <div className="hidden md:block rounded-lg border border-slate-200 overflow-hidden">
+          <Table>
+            <TableHeader className="bg-slate-50">
+              <TableRow className="hover:bg-slate-50">
+                <TableHead className="w-12">
+                  <Checkbox
+                    checked={selectedPrestations.length === prestations.length && prestations.length > 0}
+                    onCheckedChange={handleSelectAll}
+                    className="border-slate-300"
+                  />
+                </TableHead>
+                <TableHead className="font-semibold min-w-[200px]">Nom</TableHead>
+                <TableHead className="font-semibold min-w-[250px]">Description</TableHead>
+                <TableHead className="font-semibold text-center w-20">Durée</TableHead>
+                <TableHead className="font-semibold text-center w-24">Popularité</TableHead>
+                <TableHead className="font-semibold text-center w-24">Forfaits</TableHead>
+                <TableHead className="font-semibold text-center w-20">Statut</TableHead>
+                <TableHead className="text-right font-semibold w-32">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {paginatedPrestations.map((prestation, index) => {
+                const forfaits = getForfaitsForPrestation(prestation.id)
+                return (
+                  <TableRow
+                    key={prestation.id}
+                    className={`hover:bg-slate-50/80 transition-colors duration-200 ${selectedPrestations.includes(prestation.id) ? 'bg-blue-50/50' : index % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'
+                      }`}
+                  >
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedPrestations.includes(prestation.id)}
+                        onCheckedChange={(checked) => handleSelectPrestation(prestation.id, checked as boolean)}
+                        className="border-slate-300"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className={`p-2 rounded-lg ${typeService === 'CARROSSERIE' ? 'bg-orange-100' : 'bg-blue-100'}`}>
+                          {typeService === 'CARROSSERIE' ?
+                            <PaintBucket className="h-4 w-4 text-orange-600" /> :
+                            <Wrench className="h-4 w-4 text-blue-600" />
+                          }
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <div className="font-semibold text-slate-900">
-                            {new Intl.NumberFormat('fr-FR', {
-                              style: 'currency',
-                              currency: 'EUR'
-                            }).format(prestation.prixDeBase)}
-                          </div>
+                        <div className="min-w-0">
+                          <div className="font-medium text-slate-900">{prestation.nom}</div>
+                          <div className="text-xs text-slate-500">ID: {prestation.id}</div>
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-slate-700">
-                            {formatDuration(prestation.dureeEstimee)}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {getPopulariteBadge(prestation.popularite)}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="font-mono">
-                            {forfaits.length} forfait{forfaits.length > 1 ? 's' : ''}
-                          </Badge>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 w-6 p-0 hover:bg-blue-100 transition-colors"
-                            onClick={() => {
-                              setSelectedPrestation(prestation.id)
-                              setIsAddForfaitDialogOpen(true)
-                            }}
-                          >
-                            <Plus className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {prestation.actif ? (
-                            <>
-                              <Badge className="bg-green-100 text-green-800 hover:bg-green-200">Actif</Badge>
-                            </>
-                          ) : (
-                            <>
-                              <Badge className="bg-red-100 text-red-800 hover:bg-red-200">Inactif</Badge>
-                            </>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm text-slate-600 max-w-xs">
+                        {prestation.description}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <div className="flex items-center justify-center gap-1">
+                        <span className="text-sm font-medium text-slate-900 whitespace-nowrap">
+                          {formatDuration(prestation.dureeEstimee)}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {getPopulariteBadge(prestation.popularite)}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Badge variant="outline" className="text-xs whitespace-nowrap">
+                        {forfaits.length} forfait{forfaits.length > 1 ? 's' : ''}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {prestation.actif ? (
+                        <Badge className="bg-green-100 text-green-800 hover:bg-green-200 whitespace-nowrap">Actif</Badge>
+                      ) : (
+                        <Badge className="bg-red-100 text-red-800 hover:bg-red-200 whitespace-nowrap">Inactif</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="hover:bg-green-50 hover:text-green-600 hover:border-green-200 transition-colors whitespace-nowrap"
+                          onClick={() => {
+                            setSelectedPrestation(prestation.id)
+                            setIsAddForfaitDialogOpen(true)
+                          }}
+                        >
+                          <Plus className="h-3 w-3 mr-1" />
+                          Forfait
+                        </Button>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-slate-100 transition-colors">
-                              <MoreHorizontal className="h-4 w-4" />
+                            <Button variant="outline" size="sm" className="w-8 h-8 p-0 hover:bg-slate-100 transition-colors">
+                              <MoreHorizontal className="h-3 w-3" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-48">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
                             <DropdownMenuItem className="hover:bg-blue-50 hover:text-blue-600">
                               <Eye className="mr-2 h-4 w-4" />
                               Voir les détails
                             </DropdownMenuItem>
-                            <DropdownMenuItem className="hover:bg-blue-50 hover:text-blue-600">
+                            <DropdownMenuItem
+                              className="hover:bg-blue-50 hover:text-blue-600"
+                              onClick={() => handleEditPrestation(prestation.id)}
+                            >
                               <Edit className="mr-2 h-4 w-4" />
                               Modifier
                             </DropdownMenuItem>
@@ -484,116 +658,23 @@ export default function PrestationsPage() {
                               <Copy className="mr-2 h-4 w-4" />
                               Dupliquer
                             </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="hover:bg-green-50 hover:text-green-600"
-                              onClick={() => {
-                                setSelectedPrestation(prestation.id)
-                                setIsAddForfaitDialogOpen(true)
-                              }}
-                            >
-                              <Plus className="mr-2 h-4 w-4" />
-                              Ajouter forfait
-                            </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem className="text-red-600 hover:bg-red-50 hover:text-red-700">
+                            <DropdownMenuItem
+                              className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                              onClick={() => handleDeletePrestation(prestation)}
+                            >
                               <Trash2 className="mr-2 h-4 w-4" />
                               Supprimer
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
-          </div>
-
-          {/* Desktop Pagination */}
-          {totalPages > 1 && (
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mt-6 p-4 bg-slate-50 rounded-lg">
-              <div className="flex items-center gap-4">
-                <p className="text-sm text-slate-600">
-                  Affichage de <span className="font-medium">{((currentPage - 1) * itemsPerPage) + 1}</span> à{' '}
-                  <span className="font-medium">{Math.min(currentPage * itemsPerPage, prestations.length)}</span> sur{' '}
-                  <span className="font-medium">{prestations.length}</span> prestations
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(1)}
-                  disabled={currentPage === 1}
-                  className="hover:bg-slate-100 transition-colors"
-                >
-                  <ChevronsLeft className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                  disabled={currentPage === 1}
-                  className="hover:bg-slate-100 transition-colors"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                  Précédent
-                </Button>
-
-                {/* Page numbers */}
-                <div className="flex items-center gap-1">
-                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                    let pageNum;
-                    if (totalPages <= 5) {
-                      pageNum = i + 1;
-                    } else if (currentPage <= 3) {
-                      pageNum = i + 1;
-                    } else if (currentPage >= totalPages - 2) {
-                      pageNum = totalPages - 4 + i;
-                    } else {
-                      pageNum = currentPage - 2 + i;
-                    }
-
-                    return (
-                      <Button
-                        key={pageNum}
-                        variant={currentPage === pageNum ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setCurrentPage(pageNum)}
-                        className={`w-8 h-8 p-0 ${currentPage === pageNum
-                            ? 'bg-blue-600 text-white hover:bg-blue-700'
-                            : 'hover:bg-slate-100'
-                          } transition-colors`}
-                      >
-                        {pageNum}
-                      </Button>
-                    );
-                  })}
-                </div>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                  disabled={currentPage === totalPages}
-                  className="hover:bg-slate-100 transition-colors"
-                >
-                  Suivant
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(totalPages)}
-                  disabled={currentPage === totalPages}
-                  className="hover:bg-slate-100 transition-colors"
-                >
-                  <ChevronsRight className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
         </div>
 
         {/* Mobile Card Layout */}
@@ -732,10 +813,14 @@ export default function PrestationsPage() {
                 <Table>
                   <TableHeader className="bg-slate-50">
                     <TableRow className="hover:bg-slate-50">
-                      <TableHead className="font-semibold">Forfait</TableHead>
-                      <TableHead className="font-semibold">Véhicule</TableHead>
-                      <TableHead className="font-semibold">Prix</TableHead>
+                      <TableHead className="font-semibold">Nom</TableHead>
                       <TableHead className="font-semibold">Description</TableHead>
+                      <TableHead className="font-semibold">Marque</TableHead>
+                      <TableHead className="font-semibold">Modèle</TableHead>
+                      <TableHead className="font-semibold">Prix Base (€ HT)</TableHead>
+                      <TableHead className="font-semibold">TVA (%)</TableHead>
+                      <TableHead className="font-semibold">Prix TTC (€)</TableHead>
+                      <TableHead className="font-semibold">Unité</TableHead>
                       <TableHead className="text-right font-semibold">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -761,28 +846,43 @@ export default function PrestationsPage() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <div className="flex items-center gap-2">
-                              
-                              <Badge variant="secondary" className="font-mono">
-                                {forfait.marqueVehicule} {forfait.modeleVehicule}
-                              </Badge>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              
-                              <div className="font-semibold text-slate-900">
-                                {new Intl.NumberFormat('fr-FR', {
-                                  style: 'currency',
-                                  currency: 'EUR'
-                                }).format(forfait.prix)}
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
                             <div className="text-sm text-slate-600 max-w-xs line-clamp-2">
                               {forfait.description}
                             </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="secondary" className="font-mono">
+                              {forfait.marqueVehicule}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="secondary" className="font-mono">
+                              {forfait.modeleVehicule}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="font-semibold text-slate-900">
+                              {new Intl.NumberFormat('fr-FR', {
+                                style: 'currency',
+                                currency: 'EUR'
+                              }).format(forfait.prixDeBase)}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-sm text-slate-600">{forfait.tva}%</span>
+                          </TableCell>
+                          <TableCell>
+                            <div className="font-semibold text-green-700">
+                              {new Intl.NumberFormat('fr-FR', {
+                                style: 'currency',
+                                currency: 'EUR'
+                              }).format(forfait.prixDeBase * (1 + forfait.tva / 100))}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-xs">
+                              {forfait.unite === 'autre' ? forfait.uniteAutre || forfait.unite : forfait.unite}
+                            </Badge>
                           </TableCell>
                           <TableCell className="text-right">
                             <DropdownMenu>
@@ -1222,24 +1322,521 @@ export default function PrestationsPage() {
             </TabsContent>
           </Tabs>
 
+          {/* Delete Prestation Dialog */}
+          <PrestationDeleteConfirmationDialog
+            open={isDeleteDialogOpen}
+            onOpenChange={setIsDeleteDialogOpen}
+            prestation={prestationToDelete}
+            onConfirm={handleConfirmDelete}
+            isLoading={isLoading}
+          />
+
+          {/* Edit Prestation Dialog */}
+          <Dialog open={isEditPrestationDialogOpen} onOpenChange={setIsEditPrestationDialogOpen}>
+            <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Modifier la prestation</DialogTitle>
+                <DialogDescription>
+                  Modifiez les informations de la prestation
+                </DialogDescription>
+              </DialogHeader>
+              <PrestationForm
+                onSubmit={handleUpdatePrestation}
+                onCancel={() => {
+                  setIsEditPrestationDialogOpen(false)
+                  setEditingPrestation(null)
+                }}
+                isLoading={isLoading}
+                initialData={editingPrestation ? mockPrestations.find(p => p.id === editingPrestation) : undefined}
+              />
+            </DialogContent>
+          </Dialog>
           {/* Add Forfait Dialog */}
           <Dialog open={isAddForfaitDialogOpen} onOpenChange={setIsAddForfaitDialogOpen}>
-            <DialogContent className="sm:max-w-[600px]">
+            <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Ajouter un nouveau forfait</DialogTitle>
                 <DialogDescription>
-                  Créez un forfait pour une prestation spécifique
+                  Exemple: RÉVISION GÉNÉRALE Toyota
                 </DialogDescription>
               </DialogHeader>
-              <div className="p-4 text-center text-slate-600">
-                <Receipt className="h-16 w-16 text-slate-300 mx-auto mb-4" />
-                <p className="mb-2">Formulaire d'ajout de forfait à implémenter</p>
-                {selectedPrestation && (
-                  <p className="text-sm text-blue-600 font-medium">
-                    Pour la prestation: {mockPrestations.find(p => p.id === selectedPrestation)?.nom}
-                  </p>
-                )}
-              </div>
+
+              <form onSubmit={handleCreateForfait} className="space-y-6">
+                <Card className="border border-slate-200 bg-white shadow-sm">
+                  <CardContent className="p-6 space-y-6">
+                    {/* Nom du forfait */}
+                    <div className="space-y-2">
+                      <Label htmlFor="forfait-nom" className="font-medium">
+                        Nom du forfait <span className="text-red-500">*</span>
+                      </Label>
+                      <div className="relative">
+                        <Package className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                        <Input
+                          id="forfait-nom"
+                          value={forfaitFormData.nom}
+                          onChange={(e) => handleForfaitInputChange('nom', e.target.value)}
+                          placeholder="RÉVISION GÉNÉRALE Toyota"
+                          className={`pl-10 border-slate-200 focus:border-blue-300 focus:ring-blue-200 transition-colors ${forfaitErrors.nom ? 'border-red-300 focus:border-red-400 focus:ring-red-200' : ''
+                            }`}
+                        />
+                        {forfaitErrors.nom && (
+                          <AlertTriangle className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-red-500" />
+                        )}
+                      </div>
+                      {forfaitErrors.nom && (
+                        <div className="flex items-center gap-2 text-sm text-red-600">
+                          <AlertTriangle className="h-3 w-3" />
+                          {forfaitErrors.nom}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Description */}
+                    <div className="space-y-2">
+                      <Label htmlFor="forfait-description" className="font-medium">
+                        Description <span className="text-red-500">*</span>
+                      </Label>
+                      <div className="relative">
+                        <FileText className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                        <textarea
+                          id="forfait-description"
+                          value={forfaitFormData.description}
+                          onChange={(e) => handleForfaitInputChange('description', e.target.value)}
+                          placeholder="RÉVISION GÉNÉRALE"
+                          rows={3}
+                          className={`w-full pl-10 pr-10 py-2 border rounded-md resize-none focus:outline-none focus:ring-2 border-slate-200 focus:border-blue-300 focus:ring-blue-200 transition-colors ${forfaitErrors.description ? 'border-red-300 focus:border-red-400 focus:ring-red-200' : ''
+                            }`}
+                        />
+                        {forfaitErrors.description && (
+                          <AlertTriangle className="absolute right-3 top-3 h-4 w-4 text-red-500" />
+                        )}
+                      </div>
+                      {forfaitErrors.description && (
+                        <div className="flex items-center gap-2 text-sm text-red-600">
+                          <AlertTriangle className="h-3 w-3" />
+                          {forfaitErrors.description}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Prestation (disabled) */}
+                    <div className="space-y-2">
+                      <Label className="font-medium">
+                        Prestation <span className="text-red-500">*</span>
+                      </Label>
+                      <div className="relative">
+                        <Package className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                        <Input
+                          value={(() => {
+                            const prestation = mockPrestations.find(p => p.id === forfaitFormData.prestationId);
+                            return prestation ? prestation.nom : 'Aucune prestation sélectionnée';
+                          })()}
+                          disabled
+                          className="pl-10 bg-slate-50 text-slate-600 border-slate-200"
+                        />
+                      </div>
+                      {forfaitFormData.prestationId && (
+                        <div className="mt-2 p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                          {(() => {
+                            const selectedPrestation = mockPrestations.find(p => p.id === forfaitFormData.prestationId);
+                            return selectedPrestation ? (
+                              <div className="flex items-start gap-3">
+                                <div className={`p-2 rounded-lg ${selectedPrestation.typeService === 'CARROSSERIE' ? 'bg-orange-100' : 'bg-blue-100'
+                                  }`}>
+                                  {selectedPrestation.typeService === 'CARROSSERIE' ? (
+                                    <PaintBucket className="h-4 w-4 text-orange-600" />
+                                  ) : (
+                                    <Wrench className="h-4 w-4 text-blue-600" />
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="font-medium text-slate-900">{selectedPrestation.nom}</div>
+                                  <div className="text-sm text-slate-600 mt-1">{selectedPrestation.description}</div>
+                                </div>
+                              </div>
+                            ) : null;
+                          })()}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Véhicule avec recherche */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Marque avec recherche */}
+                      <div className="space-y-2">
+                        <Label className="font-medium">
+                          Marque <span className="text-red-500">*</span>
+                        </Label>
+                        <Popover open={marqueSearchOpen} onOpenChange={setMarqueSearchOpen}>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              aria-expanded={marqueSearchOpen}
+                              className={`w-full justify-between h-11 border-slate-200 focus:border-blue-300 focus:ring-blue-200 transition-colors ${forfaitErrors.marqueVehicule ? 'border-red-300 focus:border-red-400 focus:ring-red-200' : ''
+                                } ${!forfaitFormData.marqueVehicule ? 'text-slate-500' : ''}`}
+                            >
+                              <div className="flex items-center gap-2">
+                                <Car className="h-4 w-4 text-slate-400" />
+                                <span>{forfaitFormData.marqueVehicule || "Sélectionner une marque..."}</span>
+                              </div>
+                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-full p-0" align="start">
+                            <Command>
+                              <CommandInput
+                                placeholder="Rechercher ou taper une nouvelle marque..."
+                                value={marqueSearchValue}
+                                onValueChange={setMarqueSearchValue}
+                              />
+                              <CommandEmpty>
+                                <div className="p-4 text-center">
+                                  <p className="text-sm text-slate-600 mb-3">Aucune marque trouvée</p>
+                                  {marqueSearchValue && (
+                                    <Button
+                                      size="sm"
+                                      onClick={() => {
+                                        // Add new marque to the list
+                                        const newMarque = marqueSearchValue.trim()
+                                        if (newMarque && !mockMarques.includes(newMarque)) {
+                                          setMockMarques(prev => [...prev, newMarque])
+                                        }
+                                        handleForfaitInputChange('marqueVehicule', newMarque)
+                                        setMarqueSearchOpen(false)
+                                        setMarqueSearchValue('')
+                                      }}
+                                      className="bg-blue-600 hover:bg-blue-700"
+                                    >
+                                      <Plus className="h-3 w-3 mr-1" />
+                                      Ajouter "{marqueSearchValue}"
+                                    </Button>
+                                  )}
+                                </div>
+                              </CommandEmpty>
+                              <CommandGroup>
+                                {mockMarques
+                                  .filter(marque =>
+                                    marque.toLowerCase().includes(marqueSearchValue.toLowerCase())
+                                  )
+                                  .map((marque) => (
+                                    <CommandItem
+                                      key={marque}
+                                      value={marque}
+                                      onSelect={(currentValue) => {
+                                        handleForfaitInputChange('marqueVehicule', currentValue === forfaitFormData.marqueVehicule ? '' : currentValue)
+                                        setMarqueSearchOpen(false)
+                                        setMarqueSearchValue('')
+                                      }}
+                                      className="flex items-center gap-3 p-3 hover:bg-slate-50"
+                                    >
+                                      <Car className="h-4 w-4 text-slate-400" />
+                                      <span className="font-medium text-slate-900">{marque}</span>
+                                      <Check
+                                        className={`ml-auto h-4 w-4 ${forfaitFormData.marqueVehicule === marque ? "opacity-100" : "opacity-0"
+                                          }`}
+                                      />
+                                    </CommandItem>
+                                  ))}
+                              </CommandGroup>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
+                        {forfaitErrors.marqueVehicule && (
+                          <div className="flex items-center gap-2 text-sm text-red-600">
+                            <AlertTriangle className="h-3 w-3" />
+                            {forfaitErrors.marqueVehicule}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Modèle avec recherche */}
+                      <div className="space-y-2">
+                        <Label className="font-medium">
+                          Modèle <span className="text-red-500">*</span>
+                        </Label>
+                        <Popover open={modeleSearchOpen} onOpenChange={setModeleSearchOpen}>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              aria-expanded={modeleSearchOpen}
+                              disabled={!forfaitFormData.marqueVehicule}
+                              className={`w-full justify-between h-11 border-slate-200 focus:border-blue-300 focus:ring-blue-200 transition-colors ${forfaitErrors.modeleVehicule ? 'border-red-300 focus:border-red-400 focus:ring-red-200' : ''
+                                } ${!forfaitFormData.modeleVehicule ? 'text-slate-500' : ''} ${!forfaitFormData.marqueVehicule ? 'bg-slate-50 text-slate-400' : ''}`}
+                            >
+                              <div className="flex items-center gap-2">
+                                <Car className="h-4 w-4 text-slate-400" />
+                                <span>{forfaitFormData.modeleVehicule || "Sélectionner un modèle..."}</span>
+                              </div>
+                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-full p-0" align="start">
+                            <Command>
+                              <CommandInput
+                                placeholder="Rechercher ou taper un nouveau modèle..."
+                                value={modeleSearchValue}
+                                onValueChange={setModeleSearchValue}
+                              />
+                              <CommandEmpty>
+                                <div className="p-4 text-center">
+                                  <p className="text-sm text-slate-600 mb-3">Aucun modèle trouvé</p>
+                                  {modeleSearchValue && forfaitFormData.marqueVehicule && (
+                                    <Button
+                                      size="sm"
+                                      onClick={() => {
+                                        // Add new modele to the list
+                                        const newModele = modeleSearchValue.trim()
+                                        if (newModele && !getModelesForMarque(forfaitFormData.marqueVehicule).includes(newModele)) {
+                                          setMockModeles(prev => ({
+                                            ...prev,
+                                            [forfaitFormData.marqueVehicule]: [
+                                              ...(prev[forfaitFormData.marqueVehicule] || []),
+                                              newModele
+                                            ]
+                                          }))
+                                        }
+                                        handleForfaitInputChange('modeleVehicule', newModele)
+                                        setModeleSearchOpen(false)
+                                        setModeleSearchValue('')
+                                      }}
+                                      className="bg-blue-600 hover:bg-blue-700"
+                                    >
+                                      <Plus className="h-3 w-3 mr-1" />
+                                      Ajouter "{modeleSearchValue}"
+                                    </Button>
+                                  )}
+                                </div>
+                              </CommandEmpty>
+                              <CommandGroup>
+                                {getModelesForMarque(forfaitFormData.marqueVehicule)
+                                  .filter(modele =>
+                                    modele.toLowerCase().includes(modeleSearchValue.toLowerCase())
+                                  )
+                                  .map((modele) => (
+                                    <CommandItem
+                                      key={modele}
+                                      value={modele}
+                                      onSelect={(currentValue) => {
+                                        handleForfaitInputChange('modeleVehicule', currentValue === forfaitFormData.modeleVehicule ? '' : currentValue)
+                                        setModeleSearchOpen(false)
+                                        setModeleSearchValue('')
+                                      }}
+                                      className="flex items-center gap-3 p-3 hover:bg-slate-50"
+                                    >
+                                      <Car className="h-4 w-4 text-slate-400" />
+                                      <span className="font-medium text-slate-900">{modele}</span>
+                                      <Check
+                                        className={`ml-auto h-4 w-4 ${forfaitFormData.modeleVehicule === modele ? "opacity-100" : "opacity-0"
+                                          }`}
+                                      />
+                                    </CommandItem>
+                                  ))}
+                              </CommandGroup>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
+                        {forfaitErrors.modeleVehicule && (
+                          <div className="flex items-center gap-2 text-sm text-red-600">
+                            <AlertTriangle className="h-3 w-3" />
+                            {forfaitErrors.modeleVehicule}
+                          </div>
+                        )}
+                        {!forfaitFormData.marqueVehicule && (
+                          <p className="text-xs text-slate-500">Sélectionnez d'abord une marque</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Unité - Radio Buttons */}
+                    <div className="space-y-3">
+                      <Label className="font-medium">
+                        Unité <span className="text-red-500">*</span>
+                      </Label>
+                      <RadioGroup
+                        value={forfaitFormData.unite}
+                        onValueChange={(value) => handleForfaitInputChange('unite', value)}
+                        className="grid grid-cols-2 md:grid-cols-4 gap-4"
+                      >
+                        <div className="flex items-center space-x-2 p-3 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+                          <RadioGroupItem value="prestation" id="unite-prestation" />
+                          <Label htmlFor="unite-prestation" className="cursor-pointer flex-1">
+                            <div className="flex items-center gap-2">
+                              <Package className="h-4 w-4 text-slate-500" />
+                              <span className="font-medium">Prestation</span>
+                            </div>
+                          </Label>
+                        </div>
+
+                        <div className="flex items-center space-x-2 p-3 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+                          <RadioGroupItem value="heure" id="unite-heure" />
+                          <Label htmlFor="unite-heure" className="cursor-pointer flex-1">
+                            <div className="flex items-center gap-2">
+                              <Clock className="h-4 w-4 text-slate-500" />
+                              <span className="font-medium">Heure</span>
+                            </div>
+                          </Label>
+                        </div>
+
+                        <div className="flex items-center space-x-2 p-3 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+                          <RadioGroupItem value="jour" id="unite-jour" />
+                          <Label htmlFor="unite-jour" className="cursor-pointer flex-1">
+                            <div className="flex items-center gap-2">
+                              <Calendar className="h-4 w-4 text-slate-500" />
+                              <span className="font-medium">Jour</span>
+                            </div>
+                          </Label>
+                        </div>
+
+                        <div className="flex items-center space-x-2 p-3 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+                          <RadioGroupItem value="autre" id="unite-autre" />
+                          <Label htmlFor="unite-autre" className="cursor-pointer flex-1">
+                            <div className="flex items-center gap-2">
+                              <Settings className="h-4 w-4 text-slate-500" />
+                              <span className="font-medium">Autre</span>
+                            </div>
+                          </Label>
+                        </div>
+                      </RadioGroup>
+
+                      {forfaitFormData.unite === 'autre' && (
+                        <div className="mt-3">
+                          <Label htmlFor="unite-autre-input" className="text-sm font-medium text-slate-700 mb-2 block">
+                            Précisez l'unité
+                          </Label>
+                          <Input
+                            id="unite-autre-input"
+                            value={forfaitFormData.uniteAutre || ''}
+                            onChange={(e) => handleForfaitInputChange('uniteAutre', e.target.value)}
+                            placeholder="Ex: Kilomètre, Pièce, Forfait..."
+                            className={`border-slate-200 focus:border-blue-300 focus:ring-blue-200 transition-colors ${forfaitErrors.uniteAutre ? 'border-red-300 focus:border-red-400 focus:ring-red-200' : ''
+                              }`}
+                          />
+                          {forfaitErrors.uniteAutre && (
+                            <div className="flex items-center gap-2 text-sm text-red-600 mt-1">
+                              <AlertTriangle className="h-3 w-3" />
+                              {forfaitErrors.uniteAutre}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Prix de base */}
+                    <div className="space-y-2">
+                      <Label htmlFor="forfait-prix" className="font-medium">
+                        Prix de base (€ HT) <span className="text-red-500">*</span>
+                      </Label>
+                      <div className="relative">
+                        <Euro className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                        <Input
+                          id="forfait-prix"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={forfaitFormData.prixDeBase}
+                          onChange={(e) => handleForfaitInputChange('prixDeBase', parseFloat(e.target.value) || 0)}
+                          placeholder="150.00"
+                          className={`pl-10 border-slate-200 focus:border-blue-300 focus:ring-blue-200 transition-colors ${forfaitErrors.prixDeBase ? 'border-red-300 focus:border-red-400 focus:ring-red-200' : ''
+                            }`}
+                        />
+                        {forfaitErrors.prixDeBase && (
+                          <AlertTriangle className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-red-500" />
+                        )}
+                      </div>
+                      {forfaitErrors.prixDeBase && (
+                        <div className="flex items-center gap-2 text-sm text-red-600">
+                          <AlertTriangle className="h-3 w-3" />
+                          {forfaitErrors.prixDeBase}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* TVA */}
+                    <div className="space-y-2">
+                      <Label htmlFor="forfait-tva" className="font-medium">
+                        TVA (%)
+                      </Label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">%</span>
+                        <Input
+                          id="forfait-tva"
+                          type="number"
+                          step="0.1"
+                          min="0"
+                          max="100"
+                          value={forfaitFormData.tva}
+                          onChange={(e) => handleForfaitInputChange('tva', parseFloat(e.target.value) || 0)}
+                          className="pl-8 border-slate-200 focus:border-blue-300 focus:ring-blue-200 transition-colors"
+                        />
+                      </div>
+                      <p className="text-xs text-slate-500">TVA standard: 20%</p>
+                    </div>
+
+                    {/* Récapitulatif prix */}
+                    {forfaitFormData.prixDeBase > 0 && (
+                      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <h4 className="font-medium text-blue-900 mb-2">Récapitulatif</h4>
+                        <div className="space-y-1 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-blue-700">Prix HT:</span>
+                            <span className="font-medium text-blue-900">
+                              {forfaitFormData.prixDeBase.toFixed(2)} €
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-blue-700">TVA ({forfaitFormData.tva}%):</span>
+                            <span className="font-medium text-blue-900">
+                              {(forfaitFormData.prixDeBase * forfaitFormData.tva / 100).toFixed(2)} €
+                            </span>
+                          </div>
+                          <div className="flex justify-between border-t border-blue-300 pt-1">
+                            <span className="font-medium text-blue-900">Prix TTC:</span>
+                            <span className="font-bold text-blue-900">
+                              {calculatePrixTTC().toFixed(2)} €
+                            </span>
+                          </div>
+                          <div className="text-xs text-blue-600 mt-2">
+                            Par {forfaitFormData.unite === 'autre' ? forfaitFormData.uniteAutre : forfaitFormData.unite}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Actions */}
+                    <div className="flex items-center justify-end pt-4 border-t border-slate-200">
+                      <div className="flex items-center space-x-3">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setIsAddForfaitDialogOpen(false)}
+                          disabled={isLoading}
+                          className="hover:bg-slate-100 transition-colors"
+                        >
+                          Annuler
+                        </Button>
+                        <Button
+                          type="submit"
+                          disabled={isLoading}
+                          className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5"
+                        >
+                          {isLoading ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Création...
+                            </>
+                          ) : (
+                            <>
+                              Ajouter le Forfait
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </form>
             </DialogContent>
           </Dialog>
         </div>

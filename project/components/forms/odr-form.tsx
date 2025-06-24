@@ -905,7 +905,6 @@ export function ODRForm({
 
               {/* Client Category Selection */}
               <div className="space-y-4">
-                <h5 className="font-medium text-green-900">Catégorie de Client</h5>
                 <RadioGroup
                   value={newClientData.clientCategory}
                   onValueChange={(value: any) => setNewClientData(prev => ({
