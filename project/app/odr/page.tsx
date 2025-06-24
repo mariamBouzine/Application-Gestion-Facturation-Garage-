@@ -404,13 +404,13 @@ export default function ODRPage() {
   const getStatutBadge = (statut: string) => {
     switch (statut) {
       case 'EN_COURS':
-        return <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200">En Cours</Badge>
+        return <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200 whitespace-nowrap">En Cours</Badge>
       case 'TERMINE':
-        return <Badge className="bg-green-100 text-green-800 hover:bg-green-200">Terminé</Badge>
+        return <Badge className="bg-green-100 text-green-800 hover:bg-green-200 whitespace-nowrap">Terminé</Badge>
       case 'ANNULE':
-        return <Badge className="bg-red-100 text-red-800 hover:bg-red-200">Annulé</Badge>
+        return <Badge className="bg-red-100 text-red-800 hover:bg-red-200 whitespace-nowrap">Annulé</Badge>
       default:
-        return <Badge variant="secondary">{statut}</Badge>
+        return <Badge variant="secondary" className="whitespace-nowrap">{statut}</Badge>
     }
   }
 
@@ -806,6 +806,7 @@ export default function ODRPage() {
           )}
 
           {/* Desktop Table */}
+          {/* Desktop Table */}
           {filteredODR.length > 0 && (
             <Card className="border border-slate-200 bg-white hidden md:block shadow-sm">
               <CardHeader className="pb-4">
@@ -830,15 +831,15 @@ export default function ODRPage() {
                             onCheckedChange={handleSelectAll}
                           />
                         </TableHead>
-                        <TableHead className="font-semibold">N° ODR</TableHead>
-                        <TableHead className="font-semibold">Date</TableHead>
-                        <TableHead className="font-semibold">Client</TableHead>
-                        <TableHead className="font-semibold">Véhicule</TableHead>
-                        <TableHead className="font-semibold">Service</TableHead>
-                        <TableHead className="font-semibold">Statut</TableHead>
-                        <TableHead className="font-semibold">Montant</TableHead>
-                        <TableHead className="font-semibold">Observations</TableHead>
-                        <TableHead className="text-right font-semibold">Actions</TableHead>
+                        <TableHead className="font-semibold min-w-[120px]">N° ODR</TableHead>
+                        <TableHead className="font-semibold min-w-[120px]">Date</TableHead>
+                        <TableHead className="font-semibold min-w-[140px]">Client</TableHead>
+                        <TableHead className="font-semibold min-w-[100px]">Véhicule</TableHead>
+                        <TableHead className="font-semibold min-w-[120px]">Service</TableHead>
+                        <TableHead className="font-semibold min-w-[100px]">Statut</TableHead>
+                        <TableHead className="font-semibold min-w-[120px]">Montant</TableHead>
+                        <TableHead className="font-semibold min-w-[200px] max-w-[250px]">Observations</TableHead>
+                        <TableHead className="text-right font-semibold min-w-[100px]">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -848,68 +849,70 @@ export default function ODRPage() {
                           className={`hover:bg-blue-50/50 transition-colors duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'
                             } ${selectedODR.includes(odr.id) ? 'bg-blue-50 border-l-4 border-l-blue-400' : ''}`}
                         >
-                          <TableCell>
+                          <TableCell className="w-12">
                             <Checkbox
                               checked={selectedODR.includes(odr.id)}
                               onCheckedChange={(checked) => handleSelectODR(odr.id, checked as boolean)}
                             />
                           </TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className="font-mono bg-slate-50 hover:bg-slate-100 transition-colors shadow-sm">
+
+                          <TableCell className="min-w-[120px]">
+                            <Badge variant="outline" className="font-mono bg-slate-50 hover:bg-slate-100 transition-colors shadow-sm whitespace-nowrap">
                               {odr.numeroODR}
                             </Badge>
                           </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <div>
-                                <div className="text-sm font-medium text-slate-900">
-                                  {format(odr.date, 'dd/MM/yyyy', { locale: fr })}
-                                </div>
-                                {odr.dateValidite && (
-                                  <div className="text-xs text-slate-500">
-                                    Validité: {format(odr.dateValidite, 'dd/MM/yyyy', { locale: fr })}
-                                  </div>
-                                )}
+
+                          <TableCell className="min-w-[120px]">
+                            <div className="text-sm font-medium text-slate-900 whitespace-nowrap">
+                              {format(odr.date, 'dd/MM/yyyy', { locale: fr })}
+                            </div>
+                            {odr.dateValidite && (
+                              <div className="text-xs text-slate-500 whitespace-nowrap">
+                                Validité: {format(odr.dateValidite, 'dd/MM/yyyy', { locale: fr })}
                               </div>
-                            </div>
+                            )}
                           </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <div>
-                                <div className="font-medium text-slate-900">{odr.clientNom}</div>
-                                <div className="text-sm text-slate-500">{odr.numeroClient}</div>
-                              </div>
-                            </div>
+
+                          <TableCell className="min-w-[140px]">
+                            <div className="font-medium text-slate-900 whitespace-nowrap">{odr.clientNom}</div>
+                            <div className="text-sm text-slate-500 whitespace-nowrap">{odr.numeroClient}</div>
                           </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Badge variant="outline" className="font-mono">
-                                {odr.immatriculationVehicule}
-                              </Badge>
-                            </div>
+
+                          <TableCell className="min-w-[100px]">
+                            <Badge variant="outline" className="font-mono whitespace-nowrap">
+                              {odr.immatriculationVehicule}
+                            </Badge>
                           </TableCell>
-                          <TableCell>
+
+                          <TableCell className="min-w-[120px]">
                             {getServiceBadge(odr.typeService)}
                           </TableCell>
-                          <TableCell>
-                            {getStatutBadge(odr.statut)}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <div className="font-medium text-slate-900">
-                                {new Intl.NumberFormat('fr-FR', {
-                                  style: 'currency',
-                                  currency: 'EUR'
-                                }).format(odr.montantTotal)}
-                              </div>
+
+                          <TableCell className="min-w-[100px]">
+                            <div className="whitespace-nowrap">
+                              {getStatutBadge(odr.statut)}
                             </div>
                           </TableCell>
-                          <TableCell className="max-w-xs">
-                            <div className="text-sm text-slate-600 truncate" title={odr.observations}>
+
+                          <TableCell className="min-w-[120px]">
+                            <div className="font-medium text-slate-900 whitespace-nowrap">
+                              {new Intl.NumberFormat('fr-FR', {
+                                style: 'currency',
+                                currency: 'EUR'
+                              }).format(odr.montantTotal)}
+                            </div>
+                          </TableCell>
+
+                          <TableCell className="min-w-[200px] max-w-[250px]">
+                            <div
+                              className="text-sm text-slate-600 whitespace-nowrap overflow-hidden text-ellipsis"
+                              title={odr.observations}
+                            >
                               {odr.observations}
                             </div>
                           </TableCell>
-                          <TableCell className="text-right">
+
+                          <TableCell className="text-right min-w-[100px]">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-slate-100 transition-colors">
