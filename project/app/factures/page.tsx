@@ -816,6 +816,7 @@ export default function FacturesPage() {
           )}
 
           {/* Desktop Table */}
+          {/* Desktop Table */}
           {filteredFactures.length > 0 && (
             <Card className="border border-slate-200 bg-white hidden md:block shadow-sm">
               <CardHeader className="pb-4">
@@ -840,15 +841,15 @@ export default function FacturesPage() {
                             onCheckedChange={handleSelectAll}
                           />
                         </TableHead>
-                        <TableHead className="font-semibold">N° Facture</TableHead>
-                        <TableHead className="font-semibold">Date</TableHead>
-                        <TableHead className="font-semibold">Client</TableHead>
-                        <TableHead className="font-semibold">ODR Origine</TableHead>
-                        <TableHead className="font-semibold">Montant TTC</TableHead>
-                        <TableHead className="font-semibold">Échéance</TableHead>
-                        <TableHead className="font-semibold">Statut</TableHead>
-                        <TableHead className="font-semibold">Mode Paiement</TableHead>
-                        <TableHead className="text-right font-semibold">Actions</TableHead>
+                        <TableHead className="font-semibold min-w-[130px]">N° Facture</TableHead>
+                        <TableHead className="font-semibold min-w-[110px]">Date</TableHead>
+                        <TableHead className="font-semibold min-w-[150px]">Client</TableHead>
+                        <TableHead className="font-semibold min-w-[130px]">ODR Origine</TableHead>
+                        <TableHead className="font-semibold min-w-[120px]">Montant TTC</TableHead>
+                        <TableHead className="font-semibold min-w-[120px]">Échéance</TableHead>
+                        <TableHead className="font-semibold min-w-[140px]">Statut</TableHead>
+                        <TableHead className="font-semibold min-w-[140px]">Mode Paiement</TableHead>
+                        <TableHead className="text-right font-semibold min-w-[100px]">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -858,39 +859,40 @@ export default function FacturesPage() {
                           className={`hover:bg-blue-50/50 transition-colors duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'
                             } ${selectedFactures.includes(facture.id) ? 'bg-blue-50 border-l-4 border-l-blue-400' : ''}`}
                         >
-                          <TableCell>
+                          <TableCell className="w-12">
                             <Checkbox
                               checked={selectedFactures.includes(facture.id)}
                               onCheckedChange={(checked) => handleSelectFacture(facture.id, checked as boolean)}
                             />
                           </TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className="font-mono bg-slate-50 hover:bg-slate-100 transition-colors">
+
+                          <TableCell className="min-w-[130px]">
+                            <Badge variant="outline" className="font-mono bg-slate-50 hover:bg-slate-100 transition-colors whitespace-nowrap">
                               {facture.numeroFacture}
                             </Badge>
                           </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-1 text-sm text-slate-600">
-                              <Calendar className="h-3 w-3" />
+
+                          <TableCell className="min-w-[110px]">
+                            <div className="flex items-center gap-1 text-sm text-slate-600 whitespace-nowrap">
                               {format(facture.date, 'dd/MM/yyyy', { locale: fr })}
                             </div>
                           </TableCell>
-                          <TableCell>
+
+                          <TableCell className="min-w-[150px]">
                             <div className="flex items-center gap-2">
-                              <div className="p-1.5 bg-blue-100 rounded-full">
-                                <User className="h-3 w-3 text-blue-600" />
-                              </div>
-                              <div className="font-medium text-slate-900">{facture.clientNom}</div>
+                              <div className="font-medium text-slate-900 truncate">{facture.clientNom}</div>
                             </div>
                           </TableCell>
-                          <TableCell>
-                            <Badge variant="secondary" className="font-mono bg-purple-50 text-purple-700 border-purple-200 shadow-sm">
+
+                          <TableCell className="min-w-[130px]">
+                            <Badge variant="secondary" className="font-mono bg-purple-50 text-purple-700 border-purple-200 shadow-sm whitespace-nowrap">
                               {facture.numeroODR}
                             </Badge>
                           </TableCell>
-                          <TableCell>
+
+                          <TableCell className="min-w-[120px]">
                             <div className="text-right">
-                              <div className="font-semibold text-slate-900">
+                              <div className="font-semibold text-slate-900 whitespace-nowrap">
                                 {new Intl.NumberFormat('fr-FR', {
                                   style: 'currency',
                                   currency: 'EUR'
@@ -898,35 +900,41 @@ export default function FacturesPage() {
                               </div>
                             </div>
                           </TableCell>
-                          <TableCell>
-                            <div className="text-sm text-slate-600">
+
+                          <TableCell className="min-w-[120px]">
+                            <div className="text-sm text-slate-600 whitespace-nowrap">
                               {format(facture.dateEcheance, 'dd/MM/yyyy', { locale: fr })}
                             </div>
                             {facture.dateEcheance < new Date() && facture.statut !== 'PAYEE' && (
-                              <div className="text-xs text-red-500 font-medium mt-1 flex items-center gap-1">
+                              <div className="text-xs text-red-500 font-medium whitespace-nowrap flex items-center gap-1">
                                 <AlertTriangle className="h-3 w-3" />
                                 Échéance dépassée
                               </div>
                             )}
                           </TableCell>
-                          <TableCell>
-                            {getStatutBadge(facture.statut)}
+
+                          <TableCell className="min-w-[140px]">
+                            <div className="whitespace-nowrap">
+                              {getStatutBadge(facture.statut)}
+                            </div>
                           </TableCell>
-                          <TableCell>
+
+                          <TableCell className="min-w-[140px]">
                             <div className="flex items-center gap-2">
                               <div>
-                                <div className="text-sm text-slate-700">
+                                <div className="text-sm text-slate-700 whitespace-nowrap">
                                   {getModePaiementText(facture.modePaiement)}
                                 </div>
                                 {facture.dateReglement && (
-                                  <div className="text-xs text-slate-500">
+                                  <div className="text-xs text-slate-500 whitespace-nowrap">
                                     Réglé le {format(facture.dateReglement, 'dd/MM/yyyy', { locale: fr })}
                                   </div>
                                 )}
                               </div>
                             </div>
                           </TableCell>
-                          <TableCell className="text-right">
+
+                          <TableCell className="text-right min-w-[100px]">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-slate-100 transition-colors">
